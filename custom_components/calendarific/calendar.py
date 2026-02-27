@@ -115,6 +115,7 @@ class EntitiesCalendarData:
                 entity
                 and entity.name
                 and entity._date
+                and entity._date != "-"
                 and start_date <= entity._date <= end_date
             ):
                 event = CalendarEvent(
@@ -136,7 +137,7 @@ class EntitiesCalendarData:
             # _LOGGER.debug("Update Entity Name: " + str(ent))
             entity = self._hass.data[DOMAIN][SENSOR_PLATFORM][ent]
             _LOGGER.debug("Update Entity: " + str(entity))
-            if entity and entity.name and entity._date:
+            if entity and entity.name and entity._date and entity._date != "-":
                 self.event = CalendarEvent(
                     summary=entity.name,
                     start=entity._date,
