@@ -1,13 +1,13 @@
 {
     "config": {
         "abort": {
-            "no_holidays_found": "Praznici nisu pronađeni. Provjerite da li ste podesili Calendarific na ispravnu zemlju i da li je ispravan api ključ. [Molim da pročitate upute](https://github.com/pinkywafer/Calendarific)."
+            "no_holidays_found": "Praznici nisu pronađeni. Provjerite da li ste podesili Calendarific na ispravnu zemlju i da li je ispravan api ključ. [Molim da pročitate upute](https://github.com/cerebrate/Calendarific)."
         },
         "title": "Calendarific",
         "step": {
             "user": {
                 "title": "Calendarific",
-                "description": "Unesite ime senzora i podesite parametre senzora. Više informacija na https://github.com/pinkywafer/Calendarific",
+                "description": "Unesite ime senzora i podesite parametre senzora. Više informacija na https://github.com/cerebrate/Calendarific",
                 "data": {
                     "name": "Neformalni naziv (Ostavite prazno da se koristi ime praznika)",
                     "holiday": "Praznik",

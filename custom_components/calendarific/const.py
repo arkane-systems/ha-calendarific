@@ -1,7 +1,7 @@
 """ Constants """
 # Base component constants
 DOMAIN = "calendarific"
-VERSION = "1.0.2"
+VERSION = "0.0.0"
 ISSUE_URL = "https://github.com/cerebrate/Calendarific/issues"
 ATTRIBUTION = "Data provided by calendarific.com"
 

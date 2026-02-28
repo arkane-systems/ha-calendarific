@@ -1,13 +1,13 @@
 {
     "config": {
         "abort": {
-            "no_holidays_found": "Geen feestdagen gevonden.  Zorg ervoor dat u Calendarific heeft geconfigureerd met een geldige land en api-sleutel. [Lees de instructies](https://github.com/pinkywafer/Calendarific)."
+            "no_holidays_found": "Geen feestdagen gevonden.  Zorg ervoor dat u Calendarific heeft geconfigureerd met een geldige land en api-sleutel. [Lees de instructies](https://github.com/cerebrate/Calendarific)."
         },
         "title": "Calendarific",
         "step": {
             "user": {
                 "title": "Calendarific",
-                "description": "Voer de sensornaam in en configureer sensorparameters. Meer info op https://github.com/pinkywafer/Calendarific",
+                "description": "Voer de sensornaam in en configureer sensorparameters. Meer info op https://github.com/cerebrate/Calendarific",
                 "data": {
                     "name": "Vriendelijke naam (Laat leeg om de naam van de feestdag te gebruiken)",
                     "holiday": "Feestdag",
