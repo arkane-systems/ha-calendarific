@@ -8,9 +8,10 @@ from homeassistant.components.sensor import PLATFORM_SCHEMA
 
 from homeassistant.const import CONF_NAME, ATTR_ATTRIBUTION
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity import Entity, DeviceInfo
 from homeassistant.helpers.discovery import async_load_platform
 from .calendar import EntitiesCalendarData
+from .device import get_device_info
 
 from .const import (
     ATTRIBUTION,
@@ -125,6 +126,11 @@ class calendarific(Entity):
     @property
     def icon(self):
         return self._icon
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device information to group all sensors together."""
+        return get_device_info(self.hass.data[DOMAIN])
 
     async def async_added_to_hass(self):
         """Once the entity is added we should update to get the initial data loaded. Then add it to the Calendar."""

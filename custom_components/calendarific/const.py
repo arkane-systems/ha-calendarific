@@ -1,9 +1,13 @@
 """ Constants """
 # Base component constants
 DOMAIN = "calendarific"
-VERSION = "1.0.2"
+VERSION = "0.0.0"
 ISSUE_URL = "https://github.com/cerebrate/Calendarific/issues"
 ATTRIBUTION = "Data provided by calendarific.com"
+
+# Device information
+DEVICE_MANUFACTURER = "Calendarific"
+DEVICE_MODEL = "Holiday Calendar"
 
 ATTR_DATE = "date"
 
@@ -22,8 +26,8 @@ DEFAULT_ICON_NORMAL = "mdi:calendar-blank"
 DEFAULT_ICON_TODAY = "mdi:calendar-star"
 DEFAULT_ICON_SOON = "mdi:calendar"
 DEFAULT_DATE_FORMAT = "%Y-%m-%d"
-DEFAULT_SOON = 1
-DEFAULT_UNIT_OF_MEASUREMENT = "Days"
+DEFAULT_SOON = 3
+DEFAULT_UNIT_OF_MEASUREMENT = "days"
 
 #Calendar
 CALENDAR_NAME = "Calendarific"

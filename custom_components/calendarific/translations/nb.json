@@ -1,13 +1,13 @@
 {
     "config": {
         "abort": {
-            "no_holidays_found": "Ingen høytider funnet. Forsikre deg om at du har konfigurert Calendarific med et gyldig land og api-nøkkel. [Les instruksjonene] (https://github.com/pinkywafer/Calendarific)"
+            "no_holidays_found": "Ingen høytider funnet. Forsikre deg om at du har konfigurert Calendarific med et gyldig land og api-nøkkel. [Les instruksjonene] (https://github.com/cerebrate/Calendarific)"
         },
         "title": "Calendarific",
         "step": {
             "user": {
                 "title": "Calendarific",
-                "description": "Skriv inn sensornavnet og konfigurer sensorparametrene. Mer info på https://github.com/pinkywafer/Calendarific",
+                "description": "Skriv inn sensornavnet og konfigurer sensorparametrene. Mer info på https://github.com/cerebrate/Calendarific",
                 "data": {
                     "name": "Vennlig navn (la være tomt for å bruke ferienavn)",
                     "holiday": "Ferie",

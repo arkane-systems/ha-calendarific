@@ -9,9 +9,11 @@ from datetime import datetime, timedelta
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.util import Throttle
 
 from .const import CALENDAR_NAME, CALENDAR_PLATFORM, DOMAIN, SENSOR_PLATFORM
+from .device import get_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +50,11 @@ class CalendarificCalendar(CalendarEntity):
     def name(self) -> str | None:
         """Return the name of the entity."""
         return self._attr_name
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device information to group with sensor entities."""
+        return get_device_info(self.hass.data[DOMAIN])
 
     async def async_update(self) -> None:
         """Update all calendars."""

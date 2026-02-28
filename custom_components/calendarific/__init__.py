@@ -47,7 +47,9 @@ def setup(hass, config):
         reader =  CalendarificApiReader(api_key, country, state)
 
         hass.data[DOMAIN] = {
-            'apiReader': reader
+            'apiReader': reader,
+            'country': country,
+            'state': state,
         }
     return True
 

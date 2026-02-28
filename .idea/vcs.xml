@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  This file is intentionally left minimal.
+  IDE project metadata (such as JetBrains .idea files) should not be committed to version control.
+  Please configure your local IDE to use this project without relying on shared .idea settings,
+  and ensure the .idea/ directory is listed in .gitignore.
+-->
+<project version="4"/>

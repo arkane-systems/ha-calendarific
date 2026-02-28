@@ -1,10 +1,10 @@
 {
   "domain": "calendarific",
   "name": "Calendarific",
-  "codeowners": ["@pinkywafer"],
+  "codeowners": ["@cerebrate"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/pinkywafer/Calendarific",
+  "documentation": "https://github.com/cerebrate/Calendarific",
   "iot_class": "cloud_polling",
   "requirements": [
     "sampleclient",
