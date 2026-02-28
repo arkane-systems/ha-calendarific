@@ -11,6 +11,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import Entity, DeviceInfo
 from homeassistant.helpers.discovery import async_load_platform
 from .calendar import EntitiesCalendarData
+from .device import get_device_info
 
 from .const import (
     ATTRIBUTION,
@@ -31,8 +32,6 @@ from .const import (
     SENSOR_PLATFORM,
     CALENDAR_PLATFORM,
     CALENDAR_NAME,
-    DEVICE_MANUFACTURER,
-    DEVICE_MODEL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -131,28 +130,7 @@ class calendarific(Entity):
     @property
     def device_info(self) -> DeviceInfo:
         """Return device information to group all sensors together."""
-        country = self.hass.data[DOMAIN].get('country', 'unknown')
-        state = self.hass.data[DOMAIN].get('state', '')
-
-        # Create device identifier based on country and state
-        device_id = f"{DOMAIN}_{country}"
-        if state:
-            device_id += f"_{state}"
-
-        # Create device name
-        device_name = f"{DEVICE_MANUFACTURER}"
-        if country:
-            device_name += f" ({country.upper()}"
-            if state:
-                device_name += f" - {state.upper()}"
-            device_name += ")"
-
-        return DeviceInfo(
-            identifiers={(DOMAIN, device_id)},
-            name=device_name,
-            manufacturer=DEVICE_MANUFACTURER,
-            model=DEVICE_MODEL,
-        )
+        return get_device_info(self.hass.data[DOMAIN])
 
     async def async_added_to_hass(self):
         """Once the entity is added we should update to get the initial data loaded. Then add it to the Calendar."""

@@ -12,7 +12,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.util import Throttle
 
-from .const import CALENDAR_NAME, CALENDAR_PLATFORM, DOMAIN, SENSOR_PLATFORM, DEVICE_MANUFACTURER, DEVICE_MODEL
+from .const import CALENDAR_NAME, CALENDAR_PLATFORM, DOMAIN, SENSOR_PLATFORM
+from .device import get_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,28 +54,7 @@ class CalendarificCalendar(CalendarEntity):
     @property
     def device_info(self) -> DeviceInfo:
         """Return device information to group with sensor entities."""
-        country = self.hass.data[DOMAIN].get('country', 'unknown')
-        state = self.hass.data[DOMAIN].get('state', '')
-
-        # Create device identifier based on country and state (matches sensor device_info)
-        device_id = f"{DOMAIN}_{country}"
-        if state:
-            device_id += f"_{state}"
-
-        # Create device name (matches sensor device_info)
-        device_name = f"{DEVICE_MANUFACTURER}"
-        if country:
-            device_name += f" ({country.upper()}"
-            if state:
-                device_name += f" - {state.upper()}"
-            device_name += ")"
-
-        return DeviceInfo(
-            identifiers={(DOMAIN, device_id)},
-            name=device_name,
-            manufacturer=DEVICE_MANUFACTURER,
-            model=DEVICE_MODEL,
-        )
+        return get_device_info(self.hass.data[DOMAIN])
 
     async def async_update(self) -> None:
         """Update all calendars."""
