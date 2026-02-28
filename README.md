@@ -91,10 +91,10 @@ sensor:
 ### Sensor Configuration Parameters
 |Attribute |Optional|Description
 |:----------|----------|------------
-| `holiday` | No | Name of the holiday provided by calendarific api
+| `holiday` | No | Name of the holiday provided by the Calendarific API
 | `name` | Yes | Friendly name, defaulting to the holiday name
-| `icon_normal` | Yes | Default iconm defaulting to `mdi:calendar-blank`
+| `icon_normal` | Yes | Default icon, defaulting to `mdi:calendar-blank`
 | `icon_today` | Yes | Icon if the holiday is today, defaulting to `mdi:calendar-star`
 | `days_as_soon` | Yes | Days in advance to display the icon defined in `icon_soon`, defaulting to 3
 | `icon_soon` | Yes | Icon if the holiday is 'soon', defaulting to `mdi:calendar`
-| `date_format` | Yes | formats the returned datem defaulting to '%Y-%m-%d' (_For reference, see [http://strftime.org/](http://strftime.org/))._
+| `date_format` | Yes | Formats the returned date, defaulting to '%Y-%m-%d' (_For reference, see [http://strftime.org/](http://strftime.org/))._
