@@ -7,3 +7,6 @@
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-Yes-brightgreen.svg)](https://github.com/cerebrate/Calendarific/graphs/commit-activity)
 [![GitHub issues](https://img.shields.io/github/issues/cerebrate/Calendarific)](https://github.com/cerebrate/Calendarific/issues)
 
+This is a post-abandonment reboot of the Calendarific integration, originally created and maintained by @pinkywafer. The original repository
+can be found at [pinkywafer/Calendarific](https://github.com/pinkywafer/Calendarific).
+
