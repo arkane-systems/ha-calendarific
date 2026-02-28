@@ -14,7 +14,7 @@ This is a post-abandonment reboot of the Calendarific integration, originally cr
 The _Calendarific_ component is a Home Assistant custom sensor which counts down to public holidays and observances, by querying the [Calendarific](http://www.calendarific.com/) API.
 
 State Returned:
-* The number of days remaining to the next occurance.
+* The number of days remaining to the next occurrence.
 
 Attributes (both are provided by the Calendarific API):
 * **date:**  The next date of the holiday (formatted by date_format configuration option if set)
