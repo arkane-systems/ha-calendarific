@@ -5,6 +5,10 @@ VERSION = "0.0.0"
 ISSUE_URL = "https://github.com/cerebrate/Calendarific/issues"
 ATTRIBUTION = "Data provided by calendarific.com"
 
+# Device information
+DEVICE_MANUFACTURER = "Calendarific"
+DEVICE_MODEL = "Holiday Calendar"
+
 ATTR_DATE = "date"
 
 # Configuration
