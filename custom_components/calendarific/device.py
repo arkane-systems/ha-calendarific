@@ -3,11 +3,14 @@ from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN, DEVICE_MANUFACTURER, DEVICE_MODEL
 
+DATA_COUNTRY = "country"
+DATA_STATE = "state"
+
 
 def get_device_info(domain_data: dict) -> DeviceInfo:
     """Return DeviceInfo to group all Calendarific entities under one device."""
-    country = domain_data.get("country", "unknown")
-    state = domain_data.get("state", "")
+    country = domain_data.get(DATA_COUNTRY, "unknown")
+    state = domain_data.get(DATA_STATE, "")
 
     device_id = f"{DOMAIN}_{country}"
     if state:
