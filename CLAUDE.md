@@ -62,6 +62,7 @@ Icon switches based on the `days_as_soon` threshold:
 - **Sensor state = days remaining** (integer `0` or positive). State is `"unknown"` only when the holiday name is not found in the API data.
 - **`calendarificAPI`** (lowercase) is a thin HTTP wrapper around the Calendarific v2 REST API. `CalendarificApiReader` (PascalCase) is the HA-layer cache/updater that wraps it.
 - **Translations** – UI config flow strings live in `translations/<lang>.json`. `en.json` is the source of truth; other files are community-contributed translations.
+- **Entity `unique_id`** – all entities that expose `device_info` (via `device.py`'s `get_device_info()`) must also expose a stable `unique_id`, per HA's requirement (enforced from 2027.8.0) that a device-linked entity have one. Config-flow-created sensors get a `uuid4` assigned once in `config_flow.py` and stored in the entry data; YAML-configured sensors instead derive one deterministically from the holiday name (`slugify`) since there's no persisted entry to store a random ID in. `CalendarificCalendar` is a domain-wide singleton, so its `unique_id` is a fixed string rather than derived from any config.
 
 ## Release process
 

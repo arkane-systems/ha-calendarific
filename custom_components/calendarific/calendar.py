@@ -42,6 +42,11 @@ class CalendarificCalendar(CalendarEntity):
         CalendarificCalendar.instances = True
 
     @property
+    def unique_id(self) -> str:
+        """Return a unique ID to use for this calendar (singleton per domain)."""
+        return f"{DOMAIN}_calendar"
+
+    @property
     def event(self) -> CalendarEvent | None:
         """Return the next upcoming event."""
         return self.hass.data[DOMAIN][CALENDAR_PLATFORM].event

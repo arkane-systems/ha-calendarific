@@ -10,6 +10,7 @@ from homeassistant.const import CONF_NAME, ATTR_ATTRIBUTION
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import Entity, DeviceInfo
 from homeassistant.helpers.discovery import async_load_platform
+from homeassistant.util import slugify
 from .calendar import EntitiesCalendarData
 from .device import get_device_info
 
@@ -85,6 +86,11 @@ class calendarific(Entity):
         if self._unit_of_measurement is None:
             self._unit_of_measurement = DEFAULT_UNIT_OF_MEASUREMENT
         self._icon = self._icon_normal
+        # Config-flow entries carry a "unique_id" already (assigned at creation
+        # in config_flow.py). YAML-configured sensors don't, so derive a stable
+        # one from the holiday name - required for device_info to stay valid
+        # under HA's post-2027.8.0 "device requires unique_id" rule.
+        self._unique_id = config.get("unique_id") or f"{DOMAIN}_{slugify(self._holiday)}"
         self._reader = reader
         self._description = self._reader.get_description(self._holiday)
         self._date = self._reader.get_date(self._holiday)
@@ -97,7 +103,7 @@ class calendarific(Entity):
     @property
     def unique_id(self):
         """Return a unique ID to use for this sensor."""
-        return self.config.get("unique_id", None)
+        return self._unique_id
 
     @property
     def name(self):
