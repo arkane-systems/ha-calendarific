@@ -14,35 +14,47 @@ There is no local test suite and no lint/build step. Integration correctness is 
 
 ## Architecture
 
+**YAML configuration is deprecated and unsupported.** The integration is config-entry-only (no `CONFIG_SCHEMA`/`PLATFORM_SCHEMA`, no `setup()`); any leftover `calendarific:` YAML block is simply ignored (with a warning) by HA's core config validation. All setup goes through the config flow.
+
+### Instances
+
+A config entry represents one **instance**: one `api_key` + `country` + `state` combination, tracking any number of holidays. Multiple instances can coexist side by side (e.g. one for US/US-KS, one for GB), each fully independent with its own API reader, device, and calendar. This is what makes multi-country/region setups and correct device grouping possible — grouping and scoping are keyed off `entry.entry_id`, not any shared global state.
+
 ### Data flow
 
 ```
-__init__.py (CalendarificApiReader)
-  └─ fetches current-year AND next-year holidays from calendarific.com API
-       └─ sensor.py (calendarific entity, one per holiday)
-            └─ calendar.py (CalendarificCalendar + EntitiesCalendarData)
+__init__.py: async_setup_entry(entry)
+  └─ creates one CalendarificApiReader (api.py) for this entry's api_key/country/state
+       └─ fetches current-year AND next-year holidays from calendarific.com API
+       └─ stores it at hass.data[DOMAIN][entry.entry_id]["apiReader"]
+       └─ forwards to sensor.py AND calendar.py platforms for this entry
+            ├─ sensor.py: one `calendarific` entity per holiday in entry.options["holidays"]
+            └─ calendar.py: one `CalendarificCalendar` entity for this entry,
+                             aggregating that entry's own sensor entities
 ```
-
-### Setup paths
-
-There are **two parallel setup paths**:
-
-1. **YAML** – `setup()` in `__init__.py` handles the integration-level config (API key, country, state). This creates the `CalendarificApiReader` and stores it in `hass.data[DOMAIN]["apiReader"]`.
-2. **UI / config flow** – `async_setup_entry()` in `__init__.py` + `config_flow.py` handles per-sensor config (holiday name, icons, date format, etc.). `CalendarificConfigFlow.__init__` reads `hass.data[DOMAIN]["apiReader"]`, so the YAML setup (or a prior YAML-equivalent) **must** have run first.
 
 ### `hass.data[DOMAIN]` structure
 
+Keyed by config entry, not flat domain-wide:
+
 ```python
 hass.data[DOMAIN] = {
-    "apiReader": CalendarificApiReader,  # set by integration setup
-    "sensor": {entity_id: calendarific}, # populated as sensors are added
-    "calendar": EntitiesCalendarData,    # created lazily by first sensor
+    entry.entry_id: {
+        "apiReader": CalendarificApiReader,  # this instance's reader
+        "sensor": {entity_id: calendarific}, # this instance's sensor entities
+    },
+    ...  # one such block per instance/config entry
 }
 ```
 
-### Calendar lazy-loading
+### Config entry shape
 
-`CalendarificCalendar` (the HA calendar entity) is **not** set up during integration init. It is created inside `sensor.async_added_to_hass()` when the first sensor is registered, using `async_load_platform`. `CalendarificCalendar.instances` (a class variable) prevents duplicate instances.
+- `entry.data` – connection-level, set once at creation: `api_key`, `country`, `state`.
+- `entry.options["holidays"]` – a `{holiday_name: {icon_normal, icon_today, icon_soon, days_as_soon, date_format, unit_of_measurement}}` dict, the set of holidays this instance tracks. Set at creation via a `cv.multi_select` step in the config flow, and mutable afterward via `CalendarificOptionsFlowHandler` (add/remove holidays; per-holiday cosmetic settings currently aren't editable from the options UI — new selections get the defaults in `config_flow.py`'s `_default_holiday_config()`). Changing options triggers `async_update_options` → `hass.config_entries.async_reload(entry.entry_id)`.
+
+### Device and calendar grouping
+
+`device.py`'s `get_device_info(entry)` returns `identifiers={(DOMAIN, entry.entry_id)}` — every entity for an instance (however many holidays it holds) shares that one device, and separate instances never collide, since `entry.entry_id` is always unique. `CalendarificCalendar.unique_id` and the sensor `unique_id`s (`f"{entry.entry_id}_{slugify(holiday_name)}"`) are derived the same way, so the same holiday name in two different instances never collides either.
 
 ### Holiday date logic
 
@@ -60,9 +72,10 @@ Icon switches based on the `days_as_soon` threshold:
 - **Constants in `const.py`** – all domain-level constants, config keys, defaults, and platform names are defined here. Import from `const.py` rather than repeating string literals.
 - **Version placeholders** – `VERSION` in `const.py` is a human-readable string and `"version"` in `manifest.json` is kept at `"0.0.0"` in the repo. Both are overwritten by the release CI workflow (`.github/workflows/main.yml`) using `sed` when a GitHub release is published. Do not manually bump `manifest.json` version.
 - **Sensor state = days remaining** (integer `0` or positive). State is `"unknown"` only when the holiday name is not found in the API data.
-- **`calendarificAPI`** (lowercase) is a thin HTTP wrapper around the Calendarific v2 REST API. `CalendarificApiReader` (PascalCase) is the HA-layer cache/updater that wraps it.
-- **Translations** – UI config flow strings live in `translations/<lang>.json`. `en.json` is the source of truth; other files are community-contributed translations.
-- **Entity `unique_id`** – all entities that expose `device_info` (via `device.py`'s `get_device_info()`) must also expose a stable `unique_id`, per HA's requirement (enforced from 2027.8.0) that a device-linked entity have one. Config-flow-created sensors get a `uuid4` assigned once in `config_flow.py` and stored in the entry data; YAML-configured sensors instead derive one deterministically from the holiday name (`slugify`) since there's no persisted entry to store a random ID in. `CalendarificCalendar` is a domain-wide singleton, so its `unique_id` is a fixed string rather than derived from any config.
+- **`api.py`** holds the Calendarific API client: `calendarificAPI` (lowercase) is a thin HTTP wrapper around the Calendarific v2 REST API; `CalendarificApiReader` (PascalCase) is the per-instance cache/updater that wraps it; `fetch_holiday_names()` is a standalone helper used by the config/options flow to list available holidays for a country/state before an entry (and therefore a reader) exists. It's a separate module (not part of `__init__.py`) specifically so `config_flow.py` can import it without reaching into the integration's setup module.
+- **Translations** – UI config/options flow strings live in `translations/<lang>.json`. `en.json` is the source of truth; other files are community-contributed and may lag behind new flow steps.
+- **Entity `unique_id`** – every entity that exposes `device_info` (via `device.py`'s `get_device_info()`) must also expose a stable `unique_id`, per HA's requirement (enforced from 2027.8.0) that a device-linked entity have one. All of them are derived from `entry.entry_id`, so they stay unique and stable across restarts without needing to persist a random ID anywhere.
+- **Old (pre-refactor) config entries are incompatible.** `async_setup_entry` raises `ConfigEntryError` if `entry.data` doesn't contain `api_key` (the old one-entry-per-holiday shape used a different key set entirely). There's no migration path — remove and re-add the integration.
 
 ## Release process
 

@@ -18,8 +18,11 @@ CONF_ICON_TODAY = "icon_today"
 CONF_ICON_SOON = "icon_soon"
 CONF_DATE_FORMAT = "date_format"
 CONF_SOON = "days_as_soon"
-CONF_HOLIDAY = "holiday"
 CONF_UNIT_OF_MEASUREMENT = "unit_of_measurement"
+CONF_API_KEY = "api_key"
+CONF_COUNTRY = "country"
+CONF_STATE = "state"
+CONF_HOLIDAYS = "holidays"
 
 # Defaults
 DEFAULT_ICON_NORMAL = "mdi:calendar-blank"
@@ -29,7 +32,4 @@ DEFAULT_DATE_FORMAT = "%Y-%m-%d"
 DEFAULT_SOON = 3
 DEFAULT_UNIT_OF_MEASUREMENT = "days"
 
-#Calendar
-CALENDAR_NAME = "Calendarific"
 SENSOR_PLATFORM = "sensor"
-CALENDAR_PLATFORM = "calendar"

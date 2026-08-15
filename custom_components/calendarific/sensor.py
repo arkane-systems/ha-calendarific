@@ -2,37 +2,31 @@
 from datetime import datetime, date
 import logging
 
-import voluptuous as vol
-
-from homeassistant.components.sensor import PLATFORM_SCHEMA
-
-from homeassistant.const import CONF_NAME, ATTR_ATTRIBUTION
-import homeassistant.helpers.config_validation as cv
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import ATTR_ATTRIBUTION
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import Entity, DeviceInfo
-from homeassistant.helpers.discovery import async_load_platform
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import slugify
-from .calendar import EntitiesCalendarData
 from .device import get_device_info
 
 from .const import (
     ATTRIBUTION,
+    CONF_ICON_NORMAL,
+    CONF_ICON_TODAY,
+    CONF_ICON_SOON,
+    CONF_DATE_FORMAT,
+    CONF_SOON,
+    CONF_UNIT_OF_MEASUREMENT,
+    CONF_HOLIDAYS,
     DEFAULT_SOON,
     DEFAULT_ICON_SOON,
     DEFAULT_ICON_NORMAL,
     DEFAULT_ICON_TODAY,
     DEFAULT_DATE_FORMAT,
     DEFAULT_UNIT_OF_MEASUREMENT,
-    CONF_ICON_NORMAL,
-    CONF_ICON_TODAY,
-    CONF_ICON_SOON,
-    CONF_DATE_FORMAT,
-    CONF_SOON,
-    CONF_HOLIDAY,
-    CONF_UNIT_OF_MEASUREMENT,
     DOMAIN,
     SENSOR_PLATFORM,
-    CALENDAR_PLATFORM,
-    CALENDAR_NAME,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,57 +34,38 @@ _LOGGER = logging.getLogger(__name__)
 ATTR_DESCRIPTION = "description"
 ATTR_DATE = "date"
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_HOLIDAY): cv.string,
-        vol.Optional(CONF_NAME, default=''): cv.string,
-        vol.Optional(CONF_SOON, default=DEFAULT_SOON): cv.positive_int,
-        vol.Optional(CONF_ICON_NORMAL, default=DEFAULT_ICON_NORMAL): cv.icon,
-        vol.Optional(CONF_ICON_TODAY, default=DEFAULT_ICON_TODAY): cv.icon,
-        vol.Optional(CONF_ICON_SOON, default=DEFAULT_ICON_SOON): cv.icon,
-        vol.Optional(CONF_DATE_FORMAT, default=DEFAULT_DATE_FORMAT): cv.string,
-        vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=DEFAULT_UNIT_OF_MEASUREMENT): cv.string,
-    }
-)
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Setup the sensor platform."""
-    if DOMAIN in hass.data:
-        reader = hass.data[DOMAIN]['apiReader']
-        async_add_entities([calendarific(config, reader)],True)
-
-async def async_setup_entry(hass, entry, async_add_entities):
-    """Setup sensor platform."""
-    if DOMAIN in hass.data:
-        reader = hass.data[DOMAIN]['apiReader']
-        async_add_entities(
-            [calendarific(entry.data, reader)], False,
-        )
-    return True
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
+    """Set up one sensor per holiday selected for this instance."""
+    reader = hass.data[DOMAIN][entry.entry_id]["apiReader"]
+    holidays = entry.options.get(CONF_HOLIDAYS, {})
+    async_add_entities(
+        [
+            calendarific(entry, holiday_name, holiday_config, reader)
+            for holiday_name, holiday_config in holidays.items()
+        ],
+        True,
+    )
 
 
 class calendarific(Entity):
-    def __init__(self, config, reader):
+    def __init__(self, entry: ConfigEntry, holiday_name: str, config: dict, reader):
         """Initialize the sensor."""
-        self.config = config
-        self._holiday = config.get(CONF_HOLIDAY)
-        self._name = config.get(CONF_NAME)
-        if self._name == '':
-            self._name = self._holiday
-        self._icon_normal = config.get(CONF_ICON_NORMAL)
-        self._icon_today = config.get(CONF_ICON_TODAY)
-        self._icon_soon = config.get(CONF_ICON_SOON)
-        self._soon = config.get(CONF_SOON)
-        self._date_format = config.get(CONF_DATE_FORMAT)
-        self._unit_of_measurement = config.get(CONF_UNIT_OF_MEASUREMENT)
-        if self._unit_of_measurement is None:
-            self._unit_of_measurement = DEFAULT_UNIT_OF_MEASUREMENT
+        self._entry = entry
+        self._holiday = holiday_name
+        self._name = config.get("name") or holiday_name
+        self._icon_normal = config.get(CONF_ICON_NORMAL, DEFAULT_ICON_NORMAL)
+        self._icon_today = config.get(CONF_ICON_TODAY, DEFAULT_ICON_TODAY)
+        self._icon_soon = config.get(CONF_ICON_SOON, DEFAULT_ICON_SOON)
+        self._soon = config.get(CONF_SOON, DEFAULT_SOON)
+        self._date_format = config.get(CONF_DATE_FORMAT, DEFAULT_DATE_FORMAT)
+        self._unit_of_measurement = config.get(CONF_UNIT_OF_MEASUREMENT, DEFAULT_UNIT_OF_MEASUREMENT)
         self._icon = self._icon_normal
-        # Config-flow entries carry a "unique_id" already (assigned at creation
-        # in config_flow.py). YAML-configured sensors don't, so derive a stable
-        # one from the holiday name - required for device_info to stay valid
-        # under HA's post-2027.8.0 "device requires unique_id" rule.
-        self._unique_id = config.get("unique_id") or f"{DOMAIN}_{slugify(self._holiday)}"
+        # Scoped to this entry so the same holiday name in two different
+        # instances (e.g. two countries) never collides.
+        self._unique_id = f"{entry.entry_id}_{slugify(self._holiday)}"
         self._reader = reader
         self._description = self._reader.get_description(self._holiday)
         self._date = self._reader.get_date(self._holiday)
@@ -135,41 +110,20 @@ class calendarific(Entity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Return device information to group all sensors together."""
-        return get_device_info(self.hass.data[DOMAIN])
+        """Return device information to group all of this instance's entities together."""
+        return get_device_info(self._entry)
 
     async def async_added_to_hass(self):
-        """Once the entity is added we should update to get the initial data loaded. Then add it to the Calendar."""
+        """Once the entity is added we should update to get the initial data loaded."""
         await super().async_added_to_hass()
         self.async_schedule_update_ha_state(True)
-        if DOMAIN not in self.hass.data:
-            self.hass.data[DOMAIN] = {}
-        if SENSOR_PLATFORM not in self.hass.data[DOMAIN]:
-            self.hass.data[DOMAIN][SENSOR_PLATFORM] = {}
-        self.hass.data[DOMAIN][SENSOR_PLATFORM][self.entity_id] = self
-
-        if CALENDAR_PLATFORM not in self.hass.data[DOMAIN]:
-            self.hass.data[DOMAIN][
-                CALENDAR_PLATFORM
-            ] = EntitiesCalendarData(self.hass)
-            _LOGGER.info("Creating Calendarific calendar")
-            self.hass.async_create_task(
-                async_load_platform(
-                    self.hass,
-                    CALENDAR_PLATFORM,
-                    DOMAIN,
-                    {"name": CALENDAR_NAME},
-                    {"name": CALENDAR_NAME},
-                )
-            )
-        self.hass.data[DOMAIN][CALENDAR_PLATFORM].add_entity(self.entity_id)
+        self.hass.data[DOMAIN][self._entry.entry_id][SENSOR_PLATFORM][self.entity_id] = self
 
     async def async_will_remove_from_hass(self):
-        """When sensor is removed from hassio and there are no other sensors in the Calendarific calendar, remove it."""
+        """Deregister from the instance's sensor list when removed."""
         await super().async_will_remove_from_hass()
         _LOGGER.debug("Removing: %s" % (self._name))
-        del self.hass.data[DOMAIN][SENSOR_PLATFORM][self.entity_id]
-        self.hass.data[DOMAIN][CALENDAR_PLATFORM].remove_entity(self.entity_id)
+        del self.hass.data[DOMAIN][self._entry.entry_id][SENSOR_PLATFORM][self.entity_id]
 
     async def async_update(self):
         await self.hass.async_add_executor_job(self._reader.update)
