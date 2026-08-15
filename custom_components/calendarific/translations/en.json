@@ -1,16 +1,16 @@
 {
     "config": {
         "abort": {
-            "no_holidays_found": "No holidays found. Ensure that you have configured a valid country, state and api key. [Please read the instructions](https://github.com/cerebrate/Calendarific)."
+            "no_holidays_found": "No holidays found. Ensure that you have configured a valid country, state and api key."
         },
         "error": {
-            "no_holidays_found": "No holidays found. Ensure that you have configured a valid country, state and api key. [Please read the instructions](https://github.com/cerebrate/Calendarific).",
+            "no_holidays_found": "No holidays found. Ensure that you have configured a valid country, state and api key.",
             "no_holidays_selected": "Select at least one holiday."
         },
         "step": {
             "user": {
                 "title": "Add a Calendarific instance",
-                "description": "Each instance tracks holidays for one country/state combination, grouped under a single device. More info on https://github.com/cerebrate/Calendarific",
+                "description": "Each instance tracks holidays for one country/state combination, grouped under a single device.",
                 "data": {
                     "name": "Friendly name (Leave blank to generate one from country/state)",
                     "api_key": "Your Calendarific API key",
@@ -26,7 +26,7 @@
                     "icon_today": "Icon when a holiday is today",
                     "days_as_soon": "Number of days to consider a holiday 'soon'",
                     "icon_soon": "Icon when a holiday is soon",
-                    "date_format": "Date format (see http://strftime.org/)",
+                    "date_format": "Date format (Python strftime syntax)",
                     "unit_of_measurement": "Text for unit_of_measurement"
                 }
             },
@@ -68,7 +68,7 @@
                     "icon_today": "Icon when a holiday is today",
                     "days_as_soon": "Number of days to consider a holiday 'soon'",
                     "icon_soon": "Icon when a holiday is soon",
-                    "date_format": "Date format (see http://strftime.org/)",
+                    "date_format": "Date format (Python strftime syntax)",
                     "unit_of_measurement": "Text for unit_of_measurement"
                 }
             },
@@ -86,7 +86,7 @@
                     "icon_today": "Icon when this holiday is today",
                     "days_as_soon": "Number of days to consider this holiday 'soon'",
                     "icon_soon": "Icon when this holiday is soon",
-                    "date_format": "Date format (see http://strftime.org/)",
+                    "date_format": "Date format (Python strftime syntax)",
                     "unit_of_measurement": "Text for unit_of_measurement",
                     "reset_to_default": "Reset to instance default"
                 }

@@ -1,13 +1,13 @@
 {
     "config": {
         "abort": {
-            "no_holidays_found": "Praznici nisu pronađeni. Provjerite da li ste podesili Calendarific na ispravnu zemlju i da li je ispravan api ključ. [Molim da pročitate upute](https://github.com/cerebrate/Calendarific)."
+            "no_holidays_found": "Praznici nisu pronađeni. Provjerite da li ste podesili Calendarific na ispravnu zemlju i da li je ispravan api ključ."
         },
         "title": "Calendarific",
         "step": {
             "user": {
                 "title": "Calendarific",
-                "description": "Unesite ime senzora i podesite parametre senzora. Više informacija na https://github.com/cerebrate/Calendarific",
+                "description": "Unesite ime senzora i podesite parametre senzora.",
                 "data": {
                     "name": "Neformalni naziv (Ostavite prazno da se koristi ime praznika)",
                     "holiday": "Praznik",
@@ -16,7 +16,7 @@
                     "icon_today": "Ikona ako je danas praznik",
                     "days_as_soon": "Za koliko dana je uskoro",
                     "icon_soon": "Ikona kad je praznik uskoro",
-                    "date_format": "Format datuma (see http://strftime.org/)"
+                    "date_format": "Format datuma (Python strftime sintaksa)"
                 }
             }
         }
