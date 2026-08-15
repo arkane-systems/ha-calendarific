@@ -18,9 +18,21 @@
                     "state": "State/subdivision code (optional)"
                 }
             },
+            "defaults": {
+                "title": "Instance defaults",
+                "description": "These settings apply to every holiday in this instance, unless you override them for a specific holiday later.",
+                "data": {
+                    "icon_normal": "Default icon",
+                    "icon_today": "Icon when a holiday is today",
+                    "days_as_soon": "Number of days to consider a holiday 'soon'",
+                    "icon_soon": "Icon when a holiday is soon",
+                    "date_format": "Date format (see http://strftime.org/)",
+                    "unit_of_measurement": "Text for unit_of_measurement"
+                }
+            },
             "holidays": {
                 "title": "Select holidays",
-                "description": "Choose which holidays to create sensors for. You can add or remove holidays later from this instance's options.",
+                "description": "Choose which holidays to create sensors for. You can add, remove, or customize holidays later from this instance's options.",
                 "data": {
                     "holidays": "Holidays"
                 }
@@ -28,12 +40,55 @@
         }
     },
     "options": {
+        "abort": {
+            "no_holidays_configured": "This instance has no holidays configured yet. Add some first."
+        },
+        "error": {
+            "no_holidays_selected": "Select at least one holiday."
+        },
         "step": {
             "init": {
-                "title": "Manage holidays",
-                "description": "Choose which holidays this instance should track.",
+                "title": "Manage this instance",
+                "data": {
+                    "action": "What would you like to do?"
+                }
+            },
+            "holidays": {
+                "title": "Add or remove holidays",
+                "description": "Holidays you deselect stop being tracked and lose any customization they had.",
                 "data": {
                     "holidays": "Holidays"
+                }
+            },
+            "defaults": {
+                "title": "Edit instance defaults",
+                "description": "These settings apply to every holiday in this instance, unless it has its own override.",
+                "data": {
+                    "icon_normal": "Default icon",
+                    "icon_today": "Icon when a holiday is today",
+                    "days_as_soon": "Number of days to consider a holiday 'soon'",
+                    "icon_soon": "Icon when a holiday is soon",
+                    "date_format": "Date format (see http://strftime.org/)",
+                    "unit_of_measurement": "Text for unit_of_measurement"
+                }
+            },
+            "customize": {
+                "title": "Customize a holiday",
+                "data": {
+                    "holiday": "Holiday"
+                }
+            },
+            "customize_values": {
+                "title": "Customize {holiday}",
+                "description": "Values shown are this holiday's current effective settings (its own override, or the instance default). Check 'Reset to default' to discard any override for this holiday and go back to using the instance defaults - other fields are ignored if checked.",
+                "data": {
+                    "icon_normal": "Icon",
+                    "icon_today": "Icon when this holiday is today",
+                    "days_as_soon": "Number of days to consider this holiday 'soon'",
+                    "icon_soon": "Icon when this holiday is soon",
+                    "date_format": "Date format (see http://strftime.org/)",
+                    "unit_of_measurement": "Text for unit_of_measurement",
+                    "reset_to_default": "Reset to instance default"
                 }
             }
         }

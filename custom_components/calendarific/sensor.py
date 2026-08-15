@@ -19,6 +19,7 @@ from .const import (
     CONF_SOON,
     CONF_UNIT_OF_MEASUREMENT,
     CONF_HOLIDAYS,
+    CONF_DEFAULTS,
     DEFAULT_SOON,
     DEFAULT_ICON_SOON,
     DEFAULT_ICON_NORMAL,
@@ -40,11 +41,14 @@ async def async_setup_entry(
 ) -> None:
     """Set up one sensor per holiday selected for this instance."""
     reader = hass.data[DOMAIN][entry.entry_id]["apiReader"]
+    defaults = entry.options.get(CONF_DEFAULTS, {})
     holidays = entry.options.get(CONF_HOLIDAYS, {})
     async_add_entities(
         [
-            calendarific(entry, holiday_name, holiday_config, reader)
-            for holiday_name, holiday_config in holidays.items()
+            # Sparse per-holiday overrides win; anything unset falls back to
+            # the instance's defaults.
+            calendarific(entry, holiday_name, {**defaults, **override}, reader)
+            for holiday_name, override in holidays.items()
         ],
         True,
     )

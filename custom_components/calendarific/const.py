@@ -23,6 +23,7 @@ CONF_API_KEY = "api_key"
 CONF_COUNTRY = "country"
 CONF_STATE = "state"
 CONF_HOLIDAYS = "holidays"
+CONF_DEFAULTS = "defaults"
 
 # Defaults
 DEFAULT_ICON_NORMAL = "mdi:calendar-blank"

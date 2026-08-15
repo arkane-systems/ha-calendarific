@@ -51,21 +51,26 @@ In Settings/Devices & Services click **+ Add Integration**, select **Calendarifi
 1. Enter a friendly name for the instance (optional - one is generated from the country/state if left blank), your API key, country code, and state/subdivision code.
    * Country codes: [list of supported countries](https://calendarific.com/supported-countries).
    * State codes are ISO 3166-2 subdivision codes ([USA](https://en.wikipedia.org/wiki/ISO_3166-2:US), [UK](https://en.wikipedia.org/wiki/ISO_3166-2:GB); UK counties are not supported). Leave blank to see only national holidays.
-2. Choose which of the available holidays to create sensors for, from the list fetched live from Calendarific for that country/state.
+2. Set the instance's default sensor settings (icons, "soon" threshold, date format, unit of measurement) - these apply to every holiday in the instance unless you override them for a specific one later.
+3. Choose which of the available holidays to create sensors for, from the list fetched live from Calendarific for that country/state.
 
 This creates one device (grouping every holiday sensor for that instance) and one calendar entity listing them.
 
-To track a different country or state as well, just add another instance the same way - each is independent, with its own device and calendar.
+To track a different country or state as well, just add another instance the same way - each is independent, with its own device, calendar, and defaults.
 
 ## Managing holidays
 
-To add or remove holidays on an existing instance later, find it on the Integrations page and click **Configure**. This re-opens the holiday picker, pre-selected with the holidays currently tracked; changing the selection adds or removes the corresponding sensors.
+Find the instance on the Integrations page and click **Configure** to:
+
+* **Add or remove holidays** - re-opens the holiday picker, pre-selected with the holidays currently tracked. Removing a holiday also discards any customization it had.
+* **Edit instance defaults** - changes the settings every holiday in this instance inherits, unless it has its own override.
+* **Customize a specific holiday** - pick one tracked holiday and set its own icons/date format/etc., overriding the instance defaults just for it. The form shows that holiday's current *effective* settings (its override, or the instance default if it has none). Check **Reset to instance default** to discard the override and go back to inheriting - any other changes made in the same form are ignored when this is checked. Setting a field back to match the instance default has the same effect for that one field.
 
 ## Sensor Configuration Parameters
 
-Holiday sensors are created with the following defaults, applied to every holiday selected in an instance:
+Each instance has its own defaults for these settings (set during setup, editable afterward), which individual holidays can override:
 
-|Attribute |Default
+|Attribute |Built-in fallback
 |:----------|------------
 | `icon_normal` | `mdi:calendar-blank`
 | `icon_today` | `mdi:calendar-star`
