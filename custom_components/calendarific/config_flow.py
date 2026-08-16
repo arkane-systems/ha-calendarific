@@ -159,14 +159,18 @@ class CalendarificConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        return CalendarificOptionsFlowHandler(config_entry)
+        return CalendarificOptionsFlowHandler()
 
 
 class CalendarificOptionsFlowHandler(config_entries.OptionsFlow):
-    """Manage an existing instance: its holidays, its defaults, and per-holiday overrides."""
+    """Manage an existing instance: its holidays, its defaults, and per-holiday overrides.
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
+    Deliberately doesn't set self.config_entry in __init__ - recent HA
+    versions populate it automatically before async_step_init runs, and
+    assigning it here raises rather than just warning.
+    """
+
+    def __init__(self) -> None:
         self._holiday_list = []
         self._selected_holiday = None
 
