@@ -79,7 +79,10 @@ class CalendarificCalendar(CalendarEntity):
 class EntitiesCalendarData:
     """Aggregates one instance's holiday sensors into calendar events."""
 
-    __slots__ = "_entry", "event"
+    # "_throttle" isn't set here directly - the @Throttle decorator on
+    # async_update sets it dynamically on first call, so it must still be
+    # declared or that assignment fails with no __dict__ to fall back on.
+    __slots__ = "_entry", "event", "_throttle"
 
     def __init__(self, entry: ConfigEntry) -> None:
         """Initialize an Entities Calendar Data."""
