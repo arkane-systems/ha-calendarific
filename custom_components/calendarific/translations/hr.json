@@ -1,22 +1,95 @@
 {
     "config": {
         "abort": {
-            "no_holidays_found": "Praznici nisu pronađeni. Provjerite da li ste podesili Calendarific na ispravnu zemlju i da li je ispravan api ključ."
+            "no_holidays_found": "Praznici nisu pronađeni. Provjerite da li ste podesili ispravnu zemlju, državu i api ključ."
         },
-        "title": "Calendarific",
+        "error": {
+            "no_holidays_found": "Praznici nisu pronađeni. Provjerite da li ste podesili ispravnu zemlju, državu i api ključ.",
+            "no_holidays_selected": "Odaberite barem jedan praznik."
+        },
         "step": {
             "user": {
-                "title": "Calendarific",
-                "description": "Unesite ime senzora i podesite parametre senzora.",
+                "title": "Dodaj Calendarific instancu",
+                "description": "Svaka instanca prati praznike za jednu kombinaciju zemlje/države, grupirane pod jednim uređajem.",
                 "data": {
-                    "name": "Neformalni naziv (Ostavite prazno da se koristi ime praznika)",
-                    "holiday": "Praznik",
-                    "unit_of_measurement": "Tekst za unit_of_measurement",
-                    "icon_normal": "Ikona",
-                    "icon_today": "Ikona ako je danas praznik",
-                    "days_as_soon": "Za koliko dana je uskoro",
+                    "name": "Neformalni naziv (ostavite prazno da se generira iz zemlje/države)",
+                    "api_key": "Vaš Calendarific API ključ",
+                    "country": "Kod zemlje",
+                    "state": "Kod države/regije (neobavezno)"
+                }
+            },
+            "defaults": {
+                "title": "Zadane postavke instance",
+                "description": "Ove postavke vrijede za sve praznike u ovoj instanci, osim ako ih kasnije ne prepišete za određeni praznik.",
+                "data": {
+                    "icon_normal": "Zadana ikona",
+                    "icon_today": "Ikona kad je praznik danas",
+                    "days_as_soon": "Broj dana za koje se praznik smatra 'uskoro'",
                     "icon_soon": "Ikona kad je praznik uskoro",
-                    "date_format": "Format datuma (Python strftime sintaksa)"
+                    "date_format": "Format datuma (Python strftime sintaksa)",
+                    "unit_of_measurement": "Tekst za unit_of_measurement"
+                }
+            },
+            "holidays": {
+                "title": "Odaberite praznike",
+                "description": "Odaberite za koje praznike želite izraditi senzore. Praznike možete kasnije dodati, ukloniti ili prilagoditi u opcijama ove instance.",
+                "data": {
+                    "holidays": "Praznici"
+                }
+            }
+        }
+    },
+    "options": {
+        "abort": {
+            "no_holidays_configured": "Ova instanca još nema podešenih praznika. Prvo ih dodajte."
+        },
+        "error": {
+            "no_holidays_selected": "Odaberite barem jedan praznik."
+        },
+        "step": {
+            "init": {
+                "title": "Upravljanje ovom instancom",
+                "data": {
+                    "action": "Što biste željeli učiniti?"
+                }
+            },
+            "holidays": {
+                "title": "Dodaj ili ukloni praznike",
+                "description": "Praznici koje odznačite prestaju se pratiti i gube sve prilagodbe koje su imali.",
+                "data": {
+                    "holidays": "Praznici"
+                }
+            },
+            "defaults": {
+                "title": "Uredi zadane postavke instance",
+                "description": "Ove postavke vrijede za sve praznike u ovoj instanci, osim ako praznik ima vlastitu prilagodbu.",
+                "data": {
+                    "icon_normal": "Zadana ikona",
+                    "icon_today": "Ikona kad je praznik danas",
+                    "days_as_soon": "Broj dana za koje se praznik smatra 'uskoro'",
+                    "icon_soon": "Ikona kad je praznik uskoro",
+                    "date_format": "Format datuma (Python strftime sintaksa)",
+                    "unit_of_measurement": "Tekst za unit_of_measurement"
+                }
+            },
+            "customize": {
+                "title": "Prilagodi praznik",
+                "data": {
+                    "holiday": "Praznik"
+                }
+            },
+            "customize_values": {
+                "title": "Prilagodi {holiday}",
+                "description": "Prikazane vrijednosti su trenutne stvarne postavke ovog praznika (njegova vlastita prilagodba ili zadana postavka instance). Označite 'Vrati na zadano' da uklonite prilagodbu za ovaj praznik i vratite se na zadane postavke instance - ostala polja se zanemaruju ako je ovo označeno. Neformalni naziv mijenja samo prikazani naziv - neće preimenovati već dodijeljeni ID entiteta ovog praznika; za to koristite vlastite postavke entiteta.",
+                "data": {
+                    "name": "Neformalni naziv (ostavite prazno za korištenje naziva praznika)",
+                    "icon_normal": "Ikona",
+                    "icon_today": "Ikona kad je ovaj praznik danas",
+                    "days_as_soon": "Broj dana za koje se ovaj praznik smatra 'uskoro'",
+                    "icon_soon": "Ikona kad je ovaj praznik uskoro",
+                    "date_format": "Format datuma (Python strftime sintaksa)",
+                    "unit_of_measurement": "Tekst za unit_of_measurement",
+                    "reset_to_default": "Vrati na zadano instance"
                 }
             }
         }
