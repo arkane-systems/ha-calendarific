@@ -5,5 +5,4 @@ updates:
     schedule:
       interval: daily
     labels:
-      - "minor"
       - "dependencies"
