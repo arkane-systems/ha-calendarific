@@ -47,10 +47,19 @@ def _hardcoded_defaults() -> dict:
     }
 
 
-def _holiday_settings_schema(values: dict, include_reset: bool = False) -> vol.Schema:
-    """Build the icon/date-format/etc. form, pre-filled from values (falling back to hardcoded defaults)."""
+def _holiday_settings_schema(
+    values: dict, include_reset: bool = False, include_name: bool = False
+) -> vol.Schema:
+    """Build the icon/date-format/etc. form, pre-filled from values (falling back to hardcoded defaults).
+
+    include_name is only for the per-holiday customize form - a custom name
+    doesn't make sense as an instance-wide default shared by every holiday.
+    """
     hardcoded = _hardcoded_defaults()
-    schema = {
+    schema = {}
+    if include_name:
+        schema[vol.Optional(CONF_NAME, default=values.get(CONF_NAME, ""))] = cv.string
+    schema.update({
         vol.Required(
             CONF_ICON_NORMAL, default=values.get(CONF_ICON_NORMAL, hardcoded[CONF_ICON_NORMAL])
         ): cv.string,
@@ -68,7 +77,7 @@ def _holiday_settings_schema(values: dict, include_reset: bool = False) -> vol.S
             CONF_UNIT_OF_MEASUREMENT,
             default=values.get(CONF_UNIT_OF_MEASUREMENT, hardcoded[CONF_UNIT_OF_MEASUREMENT]),
         ): cv.string,
-    }
+    })
     if include_reset:
         schema[vol.Optional(CONF_RESET_TO_DEFAULT, default=False)] = cv.boolean
     return vol.Schema(schema)
@@ -264,12 +273,17 @@ class CalendarificOptionsFlowHandler(config_entries.OptionsFlow):
         override = current_holidays.get(self._selected_holiday, {})
 
         if user_input is not None:
+            name = user_input.pop(CONF_NAME, "").strip()
             if user_input.pop(CONF_RESET_TO_DEFAULT, False):
                 new_override = {}
             else:
                 # Only keep values that actually differ from the instance defaults -
-                # matching the default is equivalent to not overriding it.
+                # matching the default is equivalent to not overriding it. A custom
+                # name has no instance default to compare against - blank means "use
+                # the holiday's own name" rather than an override.
                 new_override = {k: v for k, v in user_input.items() if v != defaults.get(k)}
+                if name:
+                    new_override[CONF_NAME] = name
             holidays = {**current_holidays, self._selected_holiday: new_override}
             return self.async_create_entry(
                 title="",
@@ -277,7 +291,7 @@ class CalendarificOptionsFlowHandler(config_entries.OptionsFlow):
             )
 
         effective = {**defaults, **override}
-        schema = _holiday_settings_schema(effective, include_reset=True)
+        schema = _holiday_settings_schema(effective, include_reset=True, include_name=True)
         return self.async_show_form(
             step_id="customize_values",
             data_schema=schema,

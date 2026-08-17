@@ -3,7 +3,7 @@ from datetime import datetime, date
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_ATTRIBUTION
+from homeassistant.const import ATTR_ATTRIBUTION, CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import Entity, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -59,7 +59,7 @@ class calendarific(Entity):
         """Initialize the sensor."""
         self._entry = entry
         self._holiday = holiday_name
-        self._name = config.get("name") or holiday_name
+        self._name = config.get(CONF_NAME) or holiday_name
         self._icon_normal = config.get(CONF_ICON_NORMAL, DEFAULT_ICON_NORMAL)
         self._icon_today = config.get(CONF_ICON_TODAY, DEFAULT_ICON_TODAY)
         self._icon_soon = config.get(CONF_ICON_SOON, DEFAULT_ICON_SOON)

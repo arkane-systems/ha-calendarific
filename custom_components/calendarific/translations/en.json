@@ -80,8 +80,9 @@
             },
             "customize_values": {
                 "title": "Customize {holiday}",
-                "description": "Values shown are this holiday's current effective settings (its own override, or the instance default). Check 'Reset to default' to discard any override for this holiday and go back to using the instance defaults - other fields are ignored if checked.",
+                "description": "Values shown are this holiday's current effective settings (its own override, or the instance default). Check 'Reset to default' to discard any override for this holiday and go back to using the instance defaults - other fields are ignored if checked. A friendly name only changes the display name - it won't rename this holiday's already-assigned entity ID; use the entity's own settings dialog for that.",
                 "data": {
+                    "name": "Friendly name (leave blank to use the holiday name)",
                     "icon_normal": "Icon",
                     "icon_today": "Icon when this holiday is today",
                     "days_as_soon": "Number of days to consider this holiday 'soon'",

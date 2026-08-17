@@ -64,7 +64,9 @@ Find the instance on the Integrations page and click **Configure** to:
 
 * **Add or remove holidays** - re-opens the holiday picker, pre-selected with the holidays currently tracked. Removing a holiday also discards any customization it had.
 * **Edit instance defaults** - changes the settings every holiday in this instance inherits, unless it has its own override.
-* **Customize a specific holiday** - pick one tracked holiday and set its own icons/date format/etc., overriding the instance defaults just for it. The form shows that holiday's current *effective* settings (its override, or the instance default if it has none). Check **Reset to instance default** to discard the override and go back to inheriting - any other changes made in the same form are ignored when this is checked. Setting a field back to match the instance default has the same effect for that one field.
+* **Customize a specific holiday** - pick one tracked holiday and set its own friendly name, icons/date format/etc., overriding the instance defaults just for it. The form shows that holiday's current *effective* settings (its override, or the instance default if it has none). Check **Reset to instance default** to discard the override and go back to inheriting - any other changes made in the same form are ignored when this is checked. Setting a field back to match the instance default has the same effect for that one field; for the friendly name, leaving it blank has the same effect.
+
+  A custom friendly name only changes the entity's *display* name - it won't rename its `entity_id`, since Home Assistant assigns that once from the name at entity creation and never renames it automatically afterward. To also change the `entity_id`, use that entity's own settings dialog (Settings → Devices & Services → Entities).
 
 ## Sensor Configuration Parameters
 
