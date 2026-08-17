@@ -1,5 +1,5 @@
 # Calendarific
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/custom-components/hacs)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/arkane-systems/ha-calendarific)](https://github.com/arkane-systems/ha-calendarific/releases)
 ![GitHub Release Date](https://img.shields.io/github/release-date/arkane-systems/ha-calendarific)
 [![GitHub](https://img.shields.io/github/license/arkane-systems/ha-calendarific)](LICENSE)
