@@ -1,6 +1,4 @@
 {
   "name": "Calendarific",
-  "domains": ["calendarific", "sensor", "calendar"],
-  "homeassistant": "2023.1.0",
-  "iot_class": "Cloud Polling"
+  "homeassistant": "2023.1.0"
 }
