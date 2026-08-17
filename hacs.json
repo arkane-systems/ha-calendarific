@@ -3,7 +3,7 @@
   "name": "Calendarific",
   "zip_release": true,
   "filename": "calendarific.zip",
-  "domains": ["calendarific", "sensor"],
-  "homeassistant": "2021.12.0",
+  "domains": ["calendarific", "sensor", "calendar"],
+  "homeassistant": "2023.1.0",
   "iot_class": "Cloud Polling"
 }

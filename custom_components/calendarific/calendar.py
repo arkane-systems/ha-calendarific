@@ -8,11 +8,13 @@ import logging
 from datetime import datetime, timedelta
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import Throttle
 
-from .const import CALENDAR_NAME, CALENDAR_PLATFORM, DOMAIN, SENSOR_PLATFORM
+from .const import DOMAIN, SENSOR_PLATFORM
 from .device import get_device_info
 
 _LOGGER = logging.getLogger(__name__)
@@ -20,107 +22,87 @@ _LOGGER = logging.getLogger(__name__)
 MIN_TIME_BETWEEN_UPDATES = timedelta(minutes=1)
 
 
-async def async_setup_platform(
-    hass, config, async_add_entities, discovery_info=None
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Add calendar entities to HA, of there are calendar instances."""
-    # pylint: disable=unused-argument
-    # Only single instance allowed
-    if not CalendarificCalendar.instances:
-        async_add_entities([CalendarificCalendar()], True)
+    """Set up this instance's calendar (one per config entry)."""
+    async_add_entities([CalendarificCalendar(entry)], True)
 
 
 class CalendarificCalendar(CalendarEntity):
-    """The Calendarific collection calendar class."""
+    """Calendar collecting the holidays of a single Calendarific instance."""
 
-    instances = False
+    def __init__(self, entry: ConfigEntry) -> None:
+        """Create empty calendar for this instance."""
+        self._entry = entry
+        self._cal_data = EntitiesCalendarData(entry)
 
-    def __init__(self) -> None:
-        """Create empty calendar."""
-        self._cal_data: dict = {}
-        self._attr_name = CALENDAR_NAME
-        CalendarificCalendar.instances = True
+    @property
+    def unique_id(self) -> str:
+        """Return a unique ID to use for this calendar."""
+        return f"{self._entry.entry_id}_calendar"
 
     @property
     def event(self) -> CalendarEvent | None:
         """Return the next upcoming event."""
-        return self.hass.data[DOMAIN][CALENDAR_PLATFORM].event
+        return self._cal_data.event
 
     @property
     def name(self) -> str | None:
         """Return the name of the entity."""
-        return self._attr_name
+        return self._entry.title
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Return device information to group with sensor entities."""
-        return get_device_info(self.hass.data[DOMAIN])
+        """Return device information to group with this instance's sensors."""
+        return get_device_info(self._entry)
 
     async def async_update(self) -> None:
-        """Update all calendars."""
-        await self.hass.data[DOMAIN][CALENDAR_PLATFORM].async_update()
+        """Update the calendar."""
+        await self._cal_data.async_update(self.hass)
 
     async def async_get_events(
         self, hass: HomeAssistant, start_date: datetime, end_date: datetime
     ) -> list[CalendarEvent]:
         """Get all events in a specific time frame."""
-        return await self.hass.data[DOMAIN][CALENDAR_PLATFORM].async_get_events(
-            hass, start_date, end_date
-        )
+        return await self._cal_data.async_get_events(hass, start_date, end_date)
 
     @property
     def extra_state_attributes(self) -> dict | None:
         """Return the device state attributes."""
-        if self.hass.data[DOMAIN][CALENDAR_PLATFORM].event is None:
+        if self._cal_data.event is None:
             # No tasks, we don't need to show anything.
             return None
         return {}
 
 
 class EntitiesCalendarData:
-    """Class used by the Entities Calendar class to hold all entity events."""
+    """Aggregates one instance's holiday sensors into calendar events."""
 
-    __slots__ = "_hass", "event", "entities", "_throttle"
+    # "_throttle" isn't set here directly - the @Throttle decorator on
+    # async_update sets it dynamically on first call, so it must still be
+    # declared or that assignment fails with no __dict__ to fall back on.
+    __slots__ = "_entry", "event", "_throttle"
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, entry: ConfigEntry) -> None:
         """Initialize an Entities Calendar Data."""
-        self._hass = hass
+        self._entry = entry
         self.event: CalendarEvent | None = None
-        self.entities: list[str] = []
 
-    def add_entity(self, entity_id: str) -> None:
-        """Append entity ID to the calendar."""
-        if entity_id not in self.entities:
-            self.entities.append(entity_id)
-
-    def remove_entity(self, entity_id: str) -> None:
-        """Remove entity ID from the calendar."""
-        if entity_id in self.entities:
-            self.entities.remove(entity_id)
+    def _entities(self, hass: HomeAssistant):
+        """Return this instance's live sensor entities, keyed by entity_id."""
+        return hass.data[DOMAIN][self._entry.entry_id][SENSOR_PLATFORM]
 
     async def async_get_events(
         self, hass: HomeAssistant, start_datetime: datetime, end_datetime: datetime
     ) -> list[CalendarEvent]:
         """Get all events in a specific time frame."""
         events: list[CalendarEvent] = []
-        _LOGGER.debug("Get Events")
-        if SENSOR_PLATFORM not in hass.data[DOMAIN]:
-            return events
         start_date = start_datetime.date()
         end_date = end_datetime.date()
-        for ent in self.entities:
-            # _LOGGER.debug("Get Events: Entity Name: " + str(ent))
+        for entity in self._entities(hass).values():
             if (
-                ent
-                not in hass.data[DOMAIN][SENSOR_PLATFORM]
-                # or hass.data[DOMAIN][SENSOR_PLATFORM][ent].hidden
-            ):
-                continue
-            entity = self._hass.data[DOMAIN][SENSOR_PLATFORM][ent]
-            _LOGGER.debug("Get Events: Entity: " + str(entity))
-            if (
-                entity
-                and entity.name
+                entity.name
                 and entity._date
                 and entity._date != "-"
                 and start_date <= entity._date <= end_date
@@ -137,14 +119,10 @@ class EntitiesCalendarData:
         return events
 
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
-    async def async_update(self) -> None:
+    async def async_update(self, hass: HomeAssistant) -> None:
         """Get the latest data."""
-        _LOGGER.debug("Update")
-        for ent in self.entities:
-            # _LOGGER.debug("Update Entity Name: " + str(ent))
-            entity = self._hass.data[DOMAIN][SENSOR_PLATFORM][ent]
-            _LOGGER.debug("Update Entity: " + str(entity))
-            if entity and entity.name and entity._date and entity._date != "-":
+        for entity in self._entities(hass).values():
+            if entity.name and entity._date and entity._date != "-":
                 self.event = CalendarEvent(
                     summary=entity.name,
                     start=entity._date,

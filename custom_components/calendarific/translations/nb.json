@@ -1,22 +1,95 @@
 {
     "config": {
         "abort": {
-            "no_holidays_found": "Ingen høytider funnet. Forsikre deg om at du har konfigurert Calendarific med et gyldig land og api-nøkkel. [Les instruksjonene] (https://github.com/cerebrate/Calendarific)"
+            "no_holidays_found": "Ingen høytider funnet. Forsikre deg om at du har konfigurert et gyldig land, delstat og api-nøkkel."
         },
-        "title": "Calendarific",
+        "error": {
+            "no_holidays_found": "Ingen høytider funnet. Forsikre deg om at du har konfigurert et gyldig land, delstat og api-nøkkel.",
+            "no_holidays_selected": "Velg minst én høytid."
+        },
         "step": {
             "user": {
-                "title": "Calendarific",
-                "description": "Skriv inn sensornavnet og konfigurer sensorparametrene. Mer info på https://github.com/cerebrate/Calendarific",
+                "title": "Legg til en Calendarific-instans",
+                "description": "Hver instans sporer høytider for én land/delstat-kombinasjon, gruppert under én enhet.",
                 "data": {
-                    "name": "Vennlig navn (la være tomt for å bruke ferienavn)",
-                    "holiday": "Ferie",
-                    "unit_of_measurement": "Tekst for måling av enhet",
+                    "name": "Vennlig navn (la stå tomt for å generere ett fra land/delstat)",
+                    "api_key": "Din Calendarific API-nøkkel",
+                    "country": "Landkode",
+                    "state": "Delstat-/regionkode (valgfritt)"
+                }
+            },
+            "defaults": {
+                "title": "Standardinnstillinger for instans",
+                "description": "Disse innstillingene gjelder for alle høytider i denne instansen, med mindre du overstyrer dem for en bestemt høytid senere.",
+                "data": {
+                    "icon_normal": "Standardikon",
+                    "icon_today": "Ikon når en høytid er i dag",
+                    "days_as_soon": "Antall dager for at en høytid regnes som 'snart'",
+                    "icon_soon": "Ikon når en høytid er snart",
+                    "date_format": "Datoformat (Python strftime-syntaks)",
+                    "unit_of_measurement": "Tekst for unit_of_measurement"
+                }
+            },
+            "holidays": {
+                "title": "Velg høytider",
+                "description": "Velg hvilke høytider det skal opprettes sensorer for. Du kan legge til, fjerne eller tilpasse høytider senere fra denne instansens innstillinger.",
+                "data": {
+                    "holidays": "Høytider"
+                }
+            }
+        }
+    },
+    "options": {
+        "abort": {
+            "no_holidays_configured": "Denne instansen har ingen høytider konfigurert ennå. Legg til noen først."
+        },
+        "error": {
+            "no_holidays_selected": "Velg minst én høytid."
+        },
+        "step": {
+            "init": {
+                "title": "Administrer denne instansen",
+                "data": {
+                    "action": "Hva vil du gjøre?"
+                }
+            },
+            "holidays": {
+                "title": "Legg til eller fjern høytider",
+                "description": "Høytider du fjerner merket fra, slutter å bli sporet og mister eventuell tilpasning de hadde.",
+                "data": {
+                    "holidays": "Høytider"
+                }
+            },
+            "defaults": {
+                "title": "Rediger standardinnstillinger for instans",
+                "description": "Disse innstillingene gjelder for alle høytider i denne instansen, med mindre høytiden har sin egen overstyring.",
+                "data": {
+                    "icon_normal": "Standardikon",
+                    "icon_today": "Ikon når en høytid er i dag",
+                    "days_as_soon": "Antall dager for at en høytid regnes som 'snart'",
+                    "icon_soon": "Ikon når en høytid er snart",
+                    "date_format": "Datoformat (Python strftime-syntaks)",
+                    "unit_of_measurement": "Tekst for unit_of_measurement"
+                }
+            },
+            "customize": {
+                "title": "Tilpass en høytid",
+                "data": {
+                    "holiday": "Høytid"
+                }
+            },
+            "customize_values": {
+                "title": "Tilpass {holiday}",
+                "description": "Verdiene som vises er denne høytidens gjeldende faktiske innstillinger (sin egen overstyring, eller standarden for instansen). Kryss av for 'Tilbakestill til standard' for å fjerne eventuell overstyring for denne høytiden og gå tilbake til å bruke standardinnstillingene for instansen - andre felt ignoreres hvis dette er krysset av. Et vennlig navn endrer bare visningsnavnet - det vil ikke endre denne høytidens allerede tildelte enhets-ID; bruk enhetens egne innstillinger for det.",
+                "data": {
+                    "name": "Vennlig navn (la stå tomt for å bruke høytidens navn)",
                     "icon_normal": "Ikon",
-                    "icon_today": "Ikon når ferien er i dag",
-                    "days_as_soon": "Antall dager du bør vurdere snart",
-                    "icon_soon": "Ikon når ferien snart er",
-                    "date_format": "Datoformat (se http://strftime.org/)"
+                    "icon_today": "Ikon når denne høytiden er i dag",
+                    "days_as_soon": "Antall dager for at denne høytiden regnes som 'snart'",
+                    "icon_soon": "Ikon når denne høytiden er snart",
+                    "date_format": "Datoformat (Python strftime-syntaks)",
+                    "unit_of_measurement": "Tekst for unit_of_measurement",
+                    "reset_to_default": "Tilbakestill til standard for instans"
                 }
             }
         }

@@ -1,21 +1,95 @@
 {
     "config": {
         "abort": {
-            "no_holidays_found": "Geen feestdagen gevonden.  Zorg ervoor dat u Calendarific heeft geconfigureerd met een geldige land en api-sleutel. [Lees de instructies](https://github.com/cerebrate/Calendarific)."
+            "no_holidays_found": "Geen feestdagen gevonden. Zorg ervoor dat u een geldig land, staat en api-sleutel heeft geconfigureerd."
         },
-        "title": "Calendarific",
+        "error": {
+            "no_holidays_found": "Geen feestdagen gevonden. Zorg ervoor dat u een geldig land, staat en api-sleutel heeft geconfigureerd.",
+            "no_holidays_selected": "Selecteer minstens één feestdag."
+        },
         "step": {
             "user": {
-                "title": "Calendarific",
-                "description": "Voer de sensornaam in en configureer sensorparameters. Meer info op https://github.com/cerebrate/Calendarific",
+                "title": "Een Calendarific-instantie toevoegen",
+                "description": "Elke instantie volgt feestdagen voor één land/staat-combinatie, gegroepeerd onder één apparaat.",
                 "data": {
-                    "name": "Vriendelijke naam (Laat leeg om de naam van de feestdag te gebruiken)",
-                    "holiday": "Feestdag",
+                    "name": "Vriendelijke naam (laat leeg om er een te genereren op basis van land/staat)",
+                    "api_key": "Uw Calendarific API-sleutel",
+                    "country": "Landcode",
+                    "state": "Staat-/regiocode (optioneel)"
+                }
+            },
+            "defaults": {
+                "title": "Standaardinstellingen voor de instantie",
+                "description": "Deze instellingen gelden voor elke feestdag in deze instantie, tenzij u ze later voor een specifieke feestdag overschrijft.",
+                "data": {
+                    "icon_normal": "Standaardicoon",
+                    "icon_today": "Icoon wanneer een feestdag vandaag is",
+                    "days_as_soon": "Aantal dagen waarvoor een feestdag als 'binnenkort' wordt beschouwd",
+                    "icon_soon": "Icoon wanneer een feestdag binnenkort is",
+                    "date_format": "Datumformaat (Python strftime-syntax)",
+                    "unit_of_measurement": "Tekst voor unit_of_measurement"
+                }
+            },
+            "holidays": {
+                "title": "Selecteer feestdagen",
+                "description": "Kies voor welke feestdagen sensoren moeten worden aangemaakt. U kunt later feestdagen toevoegen, verwijderen of aanpassen via de opties van deze instantie.",
+                "data": {
+                    "holidays": "Feestdagen"
+                }
+            }
+        }
+    },
+    "options": {
+        "abort": {
+            "no_holidays_configured": "Deze instantie heeft nog geen feestdagen geconfigureerd. Voeg er eerst enkele toe."
+        },
+        "error": {
+            "no_holidays_selected": "Selecteer minstens één feestdag."
+        },
+        "step": {
+            "init": {
+                "title": "Deze instantie beheren",
+                "data": {
+                    "action": "Wat wilt u doen?"
+                }
+            },
+            "holidays": {
+                "title": "Feestdagen toevoegen of verwijderen",
+                "description": "Feestdagen die u deselecteert, worden niet langer gevolgd en verliezen eventuele aanpassingen die ze hadden.",
+                "data": {
+                    "holidays": "Feestdagen"
+                }
+            },
+            "defaults": {
+                "title": "Standaardinstellingen van de instantie bewerken",
+                "description": "Deze instellingen gelden voor elke feestdag in deze instantie, tenzij de feestdag zijn eigen aanpassing heeft.",
+                "data": {
+                    "icon_normal": "Standaardicoon",
+                    "icon_today": "Icoon wanneer een feestdag vandaag is",
+                    "days_as_soon": "Aantal dagen waarvoor een feestdag als 'binnenkort' wordt beschouwd",
+                    "icon_soon": "Icoon wanneer een feestdag binnenkort is",
+                    "date_format": "Datumformaat (Python strftime-syntax)",
+                    "unit_of_measurement": "Tekst voor unit_of_measurement"
+                }
+            },
+            "customize": {
+                "title": "Een feestdag aanpassen",
+                "data": {
+                    "holiday": "Feestdag"
+                }
+            },
+            "customize_values": {
+                "title": "{holiday} aanpassen",
+                "description": "De getoonde waarden zijn de huidige effectieve instellingen van deze feestdag (zijn eigen aanpassing, of de standaardinstelling van de instantie). Vink 'Terugzetten naar standaard' aan om de aanpassing voor deze feestdag te verwijderen en terug te gaan naar de standaardinstellingen van de instantie - andere velden worden genegeerd als dit is aangevinkt. Een vriendelijke naam wijzigt alleen de weergavenaam - de reeds toegewezen entiteits-ID van deze feestdag wordt er niet door hernoemd; gebruik hiervoor de eigen instellingen van de entiteit.",
+                "data": {
+                    "name": "Vriendelijke naam (laat leeg om de naam van de feestdag te gebruiken)",
                     "icon_normal": "Icoon",
-                    "icon_today": "Icoon als de feestdag vandaag is",
-                    "days_as_soon": "Aantal dagen vanaf iets binnenkort is",
-                    "icon_soon": "Icoon als een verjaardag binnenkort is",
-                    "date_format": "Datum formaat (see http://strftime.org/)"
+                    "icon_today": "Icoon wanneer deze feestdag vandaag is",
+                    "days_as_soon": "Aantal dagen waarvoor deze feestdag als 'binnenkort' wordt beschouwd",
+                    "icon_soon": "Icoon wanneer deze feestdag binnenkort is",
+                    "date_format": "Datumformaat (Python strftime-syntax)",
+                    "unit_of_measurement": "Tekst voor unit_of_measurement",
+                    "reset_to_default": "Terugzetten naar standaard van instantie"
                 }
             }
         }

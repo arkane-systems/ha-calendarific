@@ -1,20 +1,95 @@
 {
     "config": {
         "abort": {
-            "no_holidays_found": "No holidays found.  Ensure that you have configured Calendarific with a valid country and api key. [Please read the instructions](https://github.com/cerebrate/Calendarific)."
+            "no_holidays_found": "No holidays found. Ensure that you have configured a valid country, state and api key."
+        },
+        "error": {
+            "no_holidays_found": "No holidays found. Ensure that you have configured a valid country, state and api key.",
+            "no_holidays_selected": "Select at least one holiday."
         },
         "step": {
             "user": {
-                "description": "Enter the sensor name and configure sensor parameters. More info on https://github.com/cerebrate/Calendarific",
+                "title": "Add a Calendarific instance",
+                "description": "Each instance tracks holidays for one country/state combination, grouped under a single device.",
                 "data": {
-                    "name": "Friendly name (Leave blank to use holiday name)",
-                    "holiday": "Holiday",
-                    "unit_of_measurement": "Text for unit_of_measurement",
+                    "name": "Friendly name (Leave blank to generate one from country/state)",
+                    "api_key": "Your Calendarific API key",
+                    "country": "Country code",
+                    "state": "State/subdivision code (optional)"
+                }
+            },
+            "defaults": {
+                "title": "Instance defaults",
+                "description": "These settings apply to every holiday in this instance, unless you override them for a specific holiday later.",
+                "data": {
+                    "icon_normal": "Default icon",
+                    "icon_today": "Icon when a holiday is today",
+                    "days_as_soon": "Number of days to consider a holiday 'soon'",
+                    "icon_soon": "Icon when a holiday is soon",
+                    "date_format": "Date format (Python strftime syntax)",
+                    "unit_of_measurement": "Text for unit_of_measurement"
+                }
+            },
+            "holidays": {
+                "title": "Select holidays",
+                "description": "Choose which holidays to create sensors for. You can add, remove, or customize holidays later from this instance's options.",
+                "data": {
+                    "holidays": "Holidays"
+                }
+            }
+        }
+    },
+    "options": {
+        "abort": {
+            "no_holidays_configured": "This instance has no holidays configured yet. Add some first."
+        },
+        "error": {
+            "no_holidays_selected": "Select at least one holiday."
+        },
+        "step": {
+            "init": {
+                "title": "Manage this instance",
+                "data": {
+                    "action": "What would you like to do?"
+                }
+            },
+            "holidays": {
+                "title": "Add or remove holidays",
+                "description": "Holidays you deselect stop being tracked and lose any customization they had.",
+                "data": {
+                    "holidays": "Holidays"
+                }
+            },
+            "defaults": {
+                "title": "Edit instance defaults",
+                "description": "These settings apply to every holiday in this instance, unless it has its own override.",
+                "data": {
+                    "icon_normal": "Default icon",
+                    "icon_today": "Icon when a holiday is today",
+                    "days_as_soon": "Number of days to consider a holiday 'soon'",
+                    "icon_soon": "Icon when a holiday is soon",
+                    "date_format": "Date format (Python strftime syntax)",
+                    "unit_of_measurement": "Text for unit_of_measurement"
+                }
+            },
+            "customize": {
+                "title": "Customize a holiday",
+                "data": {
+                    "holiday": "Holiday"
+                }
+            },
+            "customize_values": {
+                "title": "Customize {holiday}",
+                "description": "Values shown are this holiday's current effective settings (its own override, or the instance default). Check 'Reset to default' to discard any override for this holiday and go back to using the instance defaults - other fields are ignored if checked. A friendly name only changes the display name - it won't rename this holiday's already-assigned entity ID; use the entity's own settings dialog for that.",
+                "data": {
+                    "name": "Friendly name (leave blank to use the holiday name)",
                     "icon_normal": "Icon",
-                    "icon_today": "Icon when holiday is today",
-                    "days_as_soon": "Number of days to consider soon",
-                    "icon_soon": "Icon when holiday is soon",
-                    "date_format": "Date format (see http://strftime.org/)"
+                    "icon_today": "Icon when this holiday is today",
+                    "days_as_soon": "Number of days to consider this holiday 'soon'",
+                    "icon_soon": "Icon when this holiday is soon",
+                    "date_format": "Date format (Python strftime syntax)",
+                    "unit_of_measurement": "Text for unit_of_measurement",
+                    "reset_to_default": "Reset to instance default"
                 }
             }
         }
