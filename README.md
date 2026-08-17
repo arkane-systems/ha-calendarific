@@ -29,6 +29,7 @@ Attributes (both are provided by the Calendarific API):
 * [Setting up an instance](#setting-up-an-instance)
 * [Managing holidays](#managing-holidays)
 * [Sensor Configuration Parameters](#sensor-configuration-parameters)
+* [Translations](#translations)
 
 ## Installation
 
@@ -80,3 +81,7 @@ Each instance has its own defaults for these settings (set during setup, editabl
 | `icon_soon` | `mdi:calendar`
 | `date_format` | `%Y-%m-%d` (_For reference, see [http://strftime.org/](http://strftime.org/))_
 | `unit_of_measurement` | `days`
+
+## Translations
+
+`en.json` (English) is the source of truth for the config/options flow text. The other language files under `custom_components/calendarific/translations/` are community-contributed and may lag behind or contain imperfect phrasing - corrections, updates, and additional languages are all welcome as pull requests.
