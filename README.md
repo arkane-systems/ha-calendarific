@@ -1,11 +1,11 @@
 # Calendarific
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/custom-components/hacs)
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/cerebrate/Calendarific)](https://github.com/cerebrate/Calendarific/releases)
-![GitHub Release Date](https://img.shields.io/github/release-date/cerebrate/Calendarific)
-[![GitHub](https://img.shields.io/github/license/cerebrate/Calendarific)](LICENSE)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/arkane-systems/ha-calendarific)](https://github.com/arkane-systems/ha-calendarific/releases)
+![GitHub Release Date](https://img.shields.io/github/release-date/arkane-systems/ha-calendarific)
+[![GitHub](https://img.shields.io/github/license/arkane-systems/ha-calendarific)](LICENSE)
 
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-Yes-brightgreen.svg)](https://github.com/cerebrate/Calendarific/graphs/commit-activity)
-[![GitHub issues](https://img.shields.io/github/issues/cerebrate/Calendarific)](https://github.com/cerebrate/Calendarific/issues)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-Yes-brightgreen.svg)](https://github.com/arkane-systems/ha-calendarific/graphs/commit-activity)
+[![GitHub issues](https://img.shields.io/github/issues/arkane-systems/ha-calendarific)](https://github.com/arkane-systems/ha-calendarific/issues)
 
 This is a post-abandonment reboot of the Calendarific integration, originally created and maintained by @pinkywafer. The original repository can be found at [pinkywafer/Calendarific](https://github.com/pinkywafer/Calendarific).
 
@@ -36,7 +36,7 @@ Attributes (both are provided by the Calendarific API):
 ### MANUAL INSTALLATION
 
 1. Download the `calendarific.zip` file from the 
-   [latest release](https://github.com/cerebrate/Calendarific/releases/latest).
+   [latest release](https://github.com/arkane-systems/ha-calendarific/releases/latest).
 2. Unpack the release and copy the `custom_components/calendarific` directory
    into the `custom_components` directory of your Home Assistant
    installation.
