@@ -74,7 +74,7 @@ Icon switches based on the `days_as_soon` threshold:
 ## Key conventions
 
 - **Constants in `const.py`** – all domain-level constants, config keys, defaults, and platform names are defined here. Import from `const.py` rather than repeating string literals.
-- **Version placeholders** – `VERSION` in `const.py` is a human-readable string and `"version"` in `manifest.json` is kept at `"0.0.0"` in the repo. Both are overwritten by the release CI workflow (`.github/workflows/main.yml`) using `sed` when a GitHub release is published. Do not manually bump `manifest.json` version.
+- **Version bumps are manual.** `VERSION` in `const.py` and `"version"` in `manifest.json` must be bumped together, by hand, as part of the commit that's tagged for release — there is no CI step that stamps them. HACS installs directly from the tagged repository tree, so whatever these two fields say at that commit is what ships.
 - **Sensor state = days remaining** (integer `0` or positive). State is `"unknown"` only when the holiday name is not found in the API data.
 - **`api.py`** holds the Calendarific API client: `calendarificAPI` (lowercase) is a thin HTTP wrapper around the Calendarific v2 REST API; `CalendarificApiReader` (PascalCase) is the per-instance cache/updater that wraps it; `fetch_holiday_names()` is a standalone helper used by the config/options flow to list available holidays for a country/state before an entry (and therefore a reader) exists. It's a separate module (not part of `__init__.py`) specifically so `config_flow.py` can import it without reaching into the integration's setup module.
 - **Translations** – UI config/options flow strings live in `translations/<lang>.json`. `en.json` is the source of truth; other files are community-contributed and may lag behind new flow steps.
@@ -83,6 +83,4 @@ Icon switches based on the `days_as_soon` threshold:
 
 ## Release process
 
-On GitHub release publish, the CI workflow (`.github/workflows/main.yml`):
-1. Replaces `VERSION` in `const.py` and `"version"` in `manifest.json` with the tag name.
-2. Zips `custom_components/calendarific/` as `calendarific.zip` and attaches it to the release (HACS downloads this zip).
+There is no release-time build step. HACS installs this integration by pulling `custom_components/calendarific/` directly from the tagged commit (`hacs.json` has no `zip_release`), so before tagging a release, bump `VERSION` in `const.py` and `"version"` in `manifest.json` by hand to match the release tag and commit that.

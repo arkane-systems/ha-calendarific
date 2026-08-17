@@ -35,9 +35,9 @@ Attributes (both are provided by the Calendarific API):
 
 ### MANUAL INSTALLATION
 
-1. Download the `calendarific.zip` file from the 
+1. Download the source code (zip) for the
    [latest release](https://github.com/arkane-systems/ha-calendarific/releases/latest).
-2. Unpack the release and copy the `custom_components/calendarific` directory
+2. Unpack it and copy the `custom_components/calendarific` directory
    into the `custom_components` directory of your Home Assistant
    installation.
 3. Restart Home Assistant.
