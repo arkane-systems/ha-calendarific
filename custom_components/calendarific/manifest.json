@@ -4,7 +4,7 @@
   "codeowners": ["@cerebrate"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/cerebrate/Calendarific",
+  "documentation": "https://github.com/arkane-systems/ha-calendarific",
   "iot_class": "cloud_polling",
   "requirements": [
     "sampleclient",
