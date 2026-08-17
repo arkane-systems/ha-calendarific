@@ -1,5 +1,5 @@
 # Calendarific
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/custom-components/hacs)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/arkane-systems/ha-calendarific)](https://github.com/arkane-systems/ha-calendarific/releases)
 ![GitHub Release Date](https://img.shields.io/github/release-date/arkane-systems/ha-calendarific)
 [![GitHub](https://img.shields.io/github/license/arkane-systems/ha-calendarific)](LICENSE)
@@ -8,6 +8,8 @@
 [![GitHub issues](https://img.shields.io/github/issues/arkane-systems/ha-calendarific)](https://github.com/arkane-systems/ha-calendarific/issues)
 
 This is a post-abandonment reboot of the Calendarific integration, originally created and maintained by @pinkywafer. The original repository can be found at [pinkywafer/Calendarific](https://github.com/pinkywafer/Calendarific).
+
+> **Upgrading from a pre-0.15 release?** 0.15 is a breaking rearchitecture (per-instance config entries, multi-holiday setup) and there's no migration path from the old one-entry-per-holiday config entries. After upgrading, remove your existing Calendarific integration entries under Settings → Devices & Services and set them up again from scratch.
 
 ---
 
@@ -25,19 +27,29 @@ Attributes (both are provided by the Calendarific API):
 ## Table of Contents
 
 * [Installation](#installation)
+  + [HACS](#hacs)
   + [Manual Installation](#manual-installation)
 * [Setting up an instance](#setting-up-an-instance)
 * [Managing holidays](#managing-holidays)
-* [Sensor Configuration Parameters](#sensor-configuration-parameters)
+* [Sensor Settings Reference](#sensor-settings-reference)
 * [Translations](#translations)
 
 ## Installation
 
+### HACS
+
+This integration isn't yet in HACS's default store, so for now it needs to be added as a custom repository:
+
+1. In HACS, open **Integrations**, click the three-dot menu in the top right corner, and select **Custom repositories**.
+2. Add `https://github.com/arkane-systems/ha-calendarific` as the repository, with category **Integration**.
+3. Find **Calendarific** in HACS and click **Download**.
+4. Restart Home Assistant.
+5. Set up one or more instances via the Integrations page (see below).
+
 ### MANUAL INSTALLATION
 
-1. Download the `calendarific.zip` file from the 
-   [latest release](https://github.com/arkane-systems/ha-calendarific/releases/latest).
-2. Unpack the release and copy the `custom_components/calendarific` directory
+1. Download this repository - either as a zip via GitHub's **Code → Download ZIP** button, or from the source code archive attached to a specific [release](https://github.com/arkane-systems/ha-calendarific/releases).
+2. Copy the `custom_components/calendarific` directory from the download
    into the `custom_components` directory of your Home Assistant
    installation.
 3. Restart Home Assistant.
@@ -69,18 +81,24 @@ Find the instance on the Integrations page and click **Configure** to:
 
   A custom friendly name only changes the entity's *display* name - it won't rename its `entity_id`, since Home Assistant assigns that once from the name at entity creation and never renames it automatically afterward. To also change the `entity_id`, use that entity's own settings dialog (Settings → Devices & Services → Entities).
 
-## Sensor Configuration Parameters
+## Sensor Settings Reference
 
-Each instance has its own defaults for these settings (set during setup, editable afterward), which individual holidays can override:
+Each holiday sensor's icons, "soon" threshold, date format, and unit of measurement are resolved from three layers, each falling back to the one below it if unset:
 
-|Attribute |Built-in fallback
+1. **Per-holiday override** - set via Configure → Customize a specific holiday. Only stored for settings that differ from the instance default.
+2. **Instance default** - set at instance setup, editable via Configure → Edit instance defaults. Applies to every holiday in the instance unless overridden.
+3. **Built-in fallback** - pre-fills the instance defaults form the first time you set one up; listed below.
+
+See [Managing holidays](#managing-holidays) for how to edit instance defaults and per-holiday overrides.
+
+|Setting |Built-in fallback
 |:----------|------------
-| `icon_normal` | `mdi:calendar-blank`
-| `icon_today` | `mdi:calendar-star`
-| `days_as_soon` | 3
-| `icon_soon` | `mdi:calendar`
-| `date_format` | `%Y-%m-%d` (_For reference, see [http://strftime.org/](http://strftime.org/))_
-| `unit_of_measurement` | `days`
+| Default icon | `mdi:calendar-blank`
+| Icon when a holiday is today | `mdi:calendar-star`
+| Number of days to consider a holiday "soon" | 3
+| Icon when a holiday is soon | `mdi:calendar`
+| Date format (Python strftime syntax) | `%Y-%m-%d` (_see [http://strftime.org/](http://strftime.org/))_
+| Text for unit_of_measurement | `days`
 
 ## Translations
 

@@ -6,9 +6,9 @@
   "dependencies": [],
   "documentation": "https://github.com/arkane-systems/ha-calendarific",
   "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/arkane-systems/ha-calendarific/issues",
   "requirements": [
-    "sampleclient",
-    "integrationhelper"
+    "requests"
   ],
-  "version": "0.0.0"
+  "version": "0.15.0"
 }
