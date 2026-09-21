@@ -185,6 +185,75 @@ def test_get_date_uses_explicit_today_over_system_clock(monkeypatch):
     assert reader.get_date("Test Day", today=date(2026, 12, 31)) == date(2027, 6, 15)
 
 
+# -- CalendarificApiReader.get_next_holiday -----------------------------------
+
+
+def test_get_next_holiday_returns_soonest(monkeypatch):
+    today = date.today()
+    soon = today + timedelta(days=5)
+    later = today + timedelta(days=20)
+
+    def fake_holidays(self, parameters):
+        if parameters["year"] == today.year:
+            return {
+                "response": {
+                    "holidays": [
+                        holiday("Later Day", later.year, later.month, later.day),
+                        holiday("Soon Day", soon.year, soon.month, soon.day),
+                    ]
+                }
+            }
+        return {"response": {"holidays": []}}
+
+    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
+    reader = api.CalendarificApiReader("key", "US", "")
+    assert reader.get_next_holiday(["Later Day", "Soon Day"], today) == ("Soon Day", soon)
+
+
+def test_get_next_holiday_breaks_date_ties_on_name(monkeypatch):
+    today = date.today()
+    same_day = today + timedelta(days=5)
+
+    def fake_holidays(self, parameters):
+        if parameters["year"] == today.year:
+            return {
+                "response": {
+                    "holidays": [
+                        holiday("Zebra Day", same_day.year, same_day.month, same_day.day),
+                        holiday("Apple Day", same_day.year, same_day.month, same_day.day),
+                    ]
+                }
+            }
+        return {"response": {"holidays": []}}
+
+    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
+    reader = api.CalendarificApiReader("key", "US", "")
+    assert reader.get_next_holiday(["Zebra Day", "Apple Day"], today) == ("Apple Day", same_day)
+
+
+def test_get_next_holiday_skips_names_not_found(monkeypatch):
+    today = date.today()
+    soon = today + timedelta(days=5)
+
+    def fake_holidays(self, parameters):
+        if parameters["year"] == today.year:
+            return {"response": {"holidays": [holiday("Soon Day", soon.year, soon.month, soon.day)]}}
+        return {"response": {"holidays": []}}
+
+    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
+    reader = api.CalendarificApiReader("key", "US", "")
+    assert reader.get_next_holiday(["Nonexistent", "Soon Day"], today) == ("Soon Day", soon)
+
+
+def test_get_next_holiday_returns_none_when_no_candidates(monkeypatch):
+    monkeypatch.setattr(
+        api.calendarificAPI, "holidays", lambda self, parameters: {"response": {"holidays": []}}
+    )
+    reader = api.CalendarificApiReader("key", "US", "")
+    assert reader.get_next_holiday(["Nonexistent"]) == (None, None)
+    assert reader.get_next_holiday([]) == (None, None)
+
+
 # -- CalendarificApiReader.get_description / get_holidays ---------------------
 
 

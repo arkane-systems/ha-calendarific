@@ -76,6 +76,24 @@ class CalendarificApiReader:
         except:
             return "NOT FOUND"
 
+    def get_next_holiday(self, holiday_names, today=None):
+        """Return (name, date) of the soonest occurrence among holiday_names, or (None, None).
+
+        Ties (same date) break on name, for a deterministic result. today
+        follows the same caller-supplied convention as get_date() - see the
+        comment there.
+        """
+        today = today or date.today()
+        candidates = []
+        for name in holiday_names:
+            holiday_date = self.get_date(name, today)
+            if holiday_date != "-":
+                candidates.append((holiday_date, name))
+        if not candidates:
+            return (None, None)
+        holiday_date, name = min(candidates)
+        return (name, holiday_date)
+
     def get_holidays(self):
         return [item['name'] for item in self._holidays]
 

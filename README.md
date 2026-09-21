@@ -15,7 +15,7 @@ This is a post-abandonment reboot of the Calendarific integration, originally cr
 
 The _Calendarific_ component is a Home Assistant custom integration which counts down to public holidays and observances, by querying the [Calendarific](http://www.calendarific.com/) API.
 
-Each **instance** you configure tracks one country/state combination (e.g. "US - KS" or "GB") and can track any number of holidays within it. All of an instance's holiday sensors are grouped under a single device, and the instance gets its own calendar entity listing its selected holidays. You can configure any number of instances side by side - for example one for US/US-KS and another for GB - each with its own device and calendar.
+Each **instance** you configure tracks one country/state combination (e.g. "US - KS" or "GB") and can track any number of holidays within it. All of an instance's holiday sensors are grouped under a single device, and the instance gets its own calendar entity listing its selected holidays. It also gets a **Next Holiday** sensor reporting whichever of its tracked holidays is coming up soonest. You can configure any number of instances side by side - for example one for US/US-KS and another for GB - each with its own device, calendar, and next-holiday sensor.
 
 State Returned (per holiday sensor):
 * The number of days remaining to the next occurrence.
@@ -23,6 +23,12 @@ State Returned (per holiday sensor):
 Attributes (both are provided by the Calendarific API):
 * **date:**  The next date of the holiday (formatted by date_format configuration option if set)
 * **description:** The description of the holiday.
+
+State Returned (Next Holiday sensor):
+* The name of whichever tracked holiday in this instance is coming up soonest (its custom friendly name, if it has one).
+
+Attributes:
+* **days:** The number of days remaining until that holiday.
 
 ## Table of Contents
 
