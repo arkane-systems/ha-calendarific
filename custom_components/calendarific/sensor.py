@@ -35,12 +35,13 @@ _LOGGER = logging.getLogger(__name__)
 
 ATTR_DESCRIPTION = "description"
 ATTR_DATE = "date"
+ATTR_DAYS = "days"
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up one sensor per holiday selected for this instance."""
+    """Set up one sensor per holiday selected for this instance, plus one next-holiday sensor."""
     reader = hass.data[DOMAIN][entry.entry_id]["apiReader"]
     defaults = entry.options.get(CONF_DEFAULTS, {})
     holidays = entry.options.get(CONF_HOLIDAYS, {})
@@ -50,7 +51,8 @@ async def async_setup_entry(
             # the instance's defaults.
             calendarific(entry, holiday_name, {**defaults, **override}, reader)
             for holiday_name, override in holidays.items()
-        ],
+        ]
+        + [CalendarificNextHoliday(entry, reader)],
         True,
     )
 
@@ -157,3 +159,60 @@ class calendarific(Entity):
         else:
             self._icon = self._icon_normal
         self._state = daysRemaining
+
+
+class CalendarificNextHoliday(Entity):
+    """Reports whichever of this instance's tracked holidays is coming up soonest."""
+
+    def __init__(self, entry: ConfigEntry, reader):
+        """Initialize the sensor."""
+        self._entry = entry
+        self._reader = reader
+        # One per instance, so it doesn't collide with another instance's.
+        self._unique_id = f"{entry.entry_id}_next_holiday"
+        self._name = "Next Holiday"
+        self._state = "unknown"
+        self._days = None
+
+    @property
+    def unique_id(self):
+        """Return a unique ID to use for this sensor."""
+        return self._unique_id
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return self._name
+
+    @property
+    def state(self):
+        """Return the name of the soonest upcoming tracked holiday."""
+        return self._state
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            ATTR_DAYS: self._days,
+            ATTR_ATTRIBUTION: ATTRIBUTION,
+        }
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device information to group all of this instance's entities together."""
+        return get_device_info(self._entry)
+
+    async def async_update(self):
+        # Use HA's configured local date, not the system clock's - see the
+        # matching comment on calendarific.async_update above.
+        today = dt_util.now().date()
+        await self.hass.async_add_executor_job(self._reader.update, today)
+        holidays = self._entry.options.get(CONF_HOLIDAYS, {})
+        name, holiday_date = self._reader.get_next_holiday(holidays.keys(), today)
+        if name is None:
+            self._state = "unknown"
+            self._days = None
+            return
+        # Respect a per-holiday custom name, matching that holiday's own sensor.
+        self._state = holidays[name].get(CONF_NAME) or name
+        self._days = (holiday_date - today).days
