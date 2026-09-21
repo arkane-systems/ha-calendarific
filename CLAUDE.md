@@ -64,6 +64,8 @@ hass.data[DOMAIN] = {
 
 `CalendarificApiReader` fetches both the **current year** and **next year** holiday lists. `get_date()` checks whether a holiday has already passed this year and, if so, returns next year's date. Sensor state is an integer (days remaining) or `"unknown"` when the holiday is not found in the API response.
 
+`get_date()` and `update()` take "today" as an optional `today=` parameter rather than computing it internally via `date.today()`/`datetime.now()`. `api.py` has no `homeassistant` dependency by design (see below), so it can't call `homeassistant.util.dt` itself; its HA-aware callers (`sensor.py`, `__init__.py`) pass in `dt_util.now().date()` explicitly. Do not let `api.py` fall back to the bare system clock in an HA-aware code path — the host's OS timezone (frequently UTC in containers/HAOS) is not necessarily HA's *configured* timezone, and comparing against it rolls "today" over at the wrong wall-clock time relative to the user's local midnight. The `today=None` fallback to `date.today()` only exists for standalone/test use outside HA.
+
 ### Sensor icon states
 
 Icon switches based on the `days_as_soon` threshold:

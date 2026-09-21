@@ -1,5 +1,5 @@
 """ Calendarific Sensor """
-from datetime import datetime, date
+from datetime import datetime
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -7,6 +7,7 @@ from homeassistant.const import ATTR_ATTRIBUTION, CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import Entity, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 from .device import get_device_info
 
@@ -72,7 +73,7 @@ class calendarific(Entity):
         self._unique_id = f"{entry.entry_id}_{slugify(self._holiday)}"
         self._reader = reader
         self._description = self._reader.get_description(self._holiday)
-        self._date = self._reader.get_date(self._holiday)
+        self._date = self._reader.get_date(self._holiday, dt_util.now().date())
         if self._date == "-":
             self._attr_date = self._date
         else:
@@ -130,15 +131,19 @@ class calendarific(Entity):
         del self.hass.data[DOMAIN][self._entry.entry_id][SENSOR_PLATFORM][self.entity_id]
 
     async def async_update(self):
-        await self.hass.async_add_executor_job(self._reader.update)
+        # Use HA's configured local date, not the system clock's - the host
+        # (e.g. a container) is frequently set to UTC regardless of the time
+        # zone configured in Home Assistant, which would otherwise roll the
+        # day over at the wrong wall-clock time.
+        today = dt_util.now().date()
+        await self.hass.async_add_executor_job(self._reader.update, today)
         self._description = self._reader.get_description(self._holiday)
-        self._date = self._reader.get_date(self._holiday)
+        self._date = self._reader.get_date(self._holiday, today)
         if self._date == "-":
             self._state = "unknown"
             self._attr_date = self._date
             return
         self._attr_date = datetime.strftime(self._date,self._date_format)
-        today = date.today()
         daysRemaining = 0
         if today < self._date:
             daysRemaining = (self._date - today).days

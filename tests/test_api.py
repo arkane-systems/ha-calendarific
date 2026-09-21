@@ -159,6 +159,32 @@ def test_get_date_returns_placeholder_when_passed_and_missing_next_year(monkeypa
     assert reader.get_date("Test Day") == "-"
 
 
+def test_get_date_uses_explicit_today_over_system_clock(monkeypatch):
+    # Regression test: sensors were rolling over at system-clock midnight
+    # (often UTC) instead of HA's configured local midnight, because get_date()
+    # used to always compute "today" itself via date.today(). Callers must be
+    # able to override it, and get_date() must actually use what's passed.
+    class FakeDate(date):
+        @classmethod
+        def today(cls):
+            return date(2026, 1, 1)  # system clock claims it's still January
+
+    monkeypatch.setattr(api, "date", FakeDate)
+
+    def fake_holidays(self, parameters):
+        if parameters["year"] == 2026:
+            return {"response": {"holidays": [holiday("Test Day", 2026, 6, 15)]}}
+        return {"response": {"holidays": [holiday("Test Day", 2027, 6, 15)]}}
+
+    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
+    reader = api.CalendarificApiReader("key", "US", "", today=date(2026, 1, 1))
+
+    # An explicit "today" of Dec 31 is well after the June holiday, so it
+    # must roll over to next year's occurrence - even though the (faked)
+    # system clock still thinks it's January and the holiday hasn't passed.
+    assert reader.get_date("Test Day", today=date(2026, 12, 31)) == date(2027, 6, 15)
+
+
 # -- CalendarificApiReader.get_description / get_holidays ---------------------
 
 
@@ -223,3 +249,32 @@ def test_update_stops_and_logs_once_on_current_year_error(monkeypatch):
     assert calls == [date.today().year]  # next year never requested
     assert reader._error_logged is True
     assert reader.get_holidays() == []
+
+
+def test_update_uses_explicit_today_over_system_clock(monkeypatch):
+    # Regression test: the daily-refresh gate used to compare against
+    # datetime.now().date() (system clock) rather than a caller-supplied
+    # "today", so it could fetch a different year - or skip a needed refetch -
+    # at the wrong wall-clock time relative to HA's configured local day.
+    class FakeDate(date):
+        @classmethod
+        def today(cls):
+            return date(2020, 1, 1)  # system clock is way off from the explicit "today" below
+
+    monkeypatch.setattr(api, "date", FakeDate)
+
+    calls = []
+
+    def fake_holidays(self, parameters):
+        calls.append(parameters["year"])
+        return {"response": {"holidays": []}}
+
+    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
+    reader = api.CalendarificApiReader("key", "US", "", today=date(2026, 9, 20))
+    assert calls == [2026, 2027]  # year comes from the explicit "today", not the system clock
+
+    reader.update(date(2026, 9, 20))  # same explicit day - still a no-op
+    assert len(calls) == 2
+
+    reader.update(date(2026, 9, 21))  # a new explicit day - refetches, system clock notwithstanding
+    assert len(calls) == 4

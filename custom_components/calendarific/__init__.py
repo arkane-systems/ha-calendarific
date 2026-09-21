@@ -5,6 +5,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError
+from homeassistant.util import dt as dt_util
 
 from .api import CalendarificApiReader
 from .const import (
@@ -33,6 +34,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_API_KEY],
         entry.data[CONF_COUNTRY],
         entry.data[CONF_STATE],
+        dt_util.now().date(),
     )
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "apiReader": reader,
