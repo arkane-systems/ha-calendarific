@@ -1,5 +1,5 @@
 """Calendarific API client and holiday cache."""
-from datetime import datetime, date
+from datetime import date
 import json
 import logging
 
@@ -41,7 +41,7 @@ def fetch_holiday_names(api_key, country, state):
 
 class CalendarificApiReader:
 
-    def __init__(self, api_key, country, state):
+    def __init__(self, api_key, country, state, today=None):
         self._country = country
         self._state = state
         self._api_key = api_key
@@ -50,14 +50,17 @@ class CalendarificApiReader:
         self._holidays = []
         self._next_holidays = []
         self._error_logged = False
-        self.update()
+        self.update(today)
 
     def get_state(self):
         return "new"
 
-    def get_date(self,holiday_name):
+    def get_date(self, holiday_name, today=None):
+        # today is caller-supplied so HA-aware callers can pass a timezone-correct
+        # "today" (see sensor.py) instead of the system clock's local date, which
+        # is often UTC and would roll the day over at the wrong wall-clock time.
+        today = today or date.today()
         try:
-            today = date.today()
             holiday_datetime = next(i for i in self._holidays if i['name'] == holiday_name)['date']['datetime']
             testdate = date(holiday_datetime['year'],holiday_datetime['month'],holiday_datetime['day'])
             if testdate < today:
@@ -76,11 +79,12 @@ class CalendarificApiReader:
     def get_holidays(self):
         return [item['name'] for item in self._holidays]
 
-    def update(self):
-        if self._lastupdated == datetime.now().date():
+    def update(self, today=None):
+        today = today or date.today()
+        if self._lastupdated == today:
             return
-        self._lastupdated = datetime.now().date()
-        year = date.today().year
+        self._lastupdated = today
+        year = today.year
         params = {'country': self._country,'year': year,'location': self._state}
         calapi = calendarificAPI(self._api_key)
         response = calapi.holidays(params)
