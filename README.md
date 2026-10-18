@@ -1,4 +1,4 @@
-# Calendarific
+# <img src="custom_components/calendarific/brand/icon.png" alt="" width="40" align="absmiddle"> Calendarific
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/arkane-systems/ha-calendarific)](https://github.com/arkane-systems/ha-calendarific/releases)
 ![GitHub Release Date](https://img.shields.io/github/release-date/arkane-systems/ha-calendarific)
