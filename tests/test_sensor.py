@@ -1,0 +1,142 @@
+"""Tests for the holiday and Next Holiday sensors."""
+
+from __future__ import annotations
+
+from datetime import date
+
+from homeassistant.core import HomeAssistant
+from homeassistant.setup import async_setup_component
+import pytest
+
+from .common import TODAY, entity_id_for, get_state, make_entry, sensor_id, setup_entry
+from .conftest import FakeApi
+
+pytestmark = pytest.mark.usefixtures("frozen_today", "fake_api")
+
+
+async def test_state_is_days_remaining_with_attributes(hass: HomeAssistant) -> None:
+    """The state is the whole days until the next occurrence."""
+    entry = await setup_entry(hass, make_entry())
+    state = get_state(hass, sensor_id(hass, entry, "Christmas Day"))
+
+    assert state.state == str((date(2026, 12, 25) - TODAY).days)
+    assert state.attributes["date"] == "2026-12-25"
+    assert state.attributes["description"] == "Description of Christmas Day."
+    assert state.attributes["attribution"] == "Data provided by calendarific.com"
+    assert state.attributes["unit_of_measurement"] == "days"
+    assert state.attributes["icon"] == "mdi:calendar-blank"
+
+
+async def test_holiday_today_is_zero_with_today_icon(hass: HomeAssistant) -> None:
+    entry = await setup_entry(hass, make_entry(holidays={"Founders Day": {}}))
+    state = get_state(hass, sensor_id(hass, entry, "Founders Day"))
+
+    assert state.state == "0"
+    assert state.attributes["icon"] == "mdi:calendar-star"
+
+
+async def test_passed_holiday_rolls_over_to_next_year(hass: HomeAssistant) -> None:
+    entry = await setup_entry(hass, make_entry(holidays={"Independence Day": {}}))
+    state = get_state(hass, sensor_id(hass, entry, "Independence Day"))
+
+    assert state.state == str((date(2027, 7, 4) - TODAY).days)
+    assert state.attributes["date"] == "2027-07-04"
+
+
+async def test_icon_switches_to_soon_within_threshold(hass: HomeAssistant) -> None:
+    """Halloween is 7 days out: normal by default, 'soon' once the threshold is raised."""
+    entry = await setup_entry(
+        hass, make_entry(holidays={"Halloween": {}, "Christmas Day": {"days_as_soon": 10}})
+    )
+    assert get_state(hass, sensor_id(hass, entry, "Halloween")).attributes["icon"] == (
+        "mdi:calendar-blank"
+    )
+
+    entry2 = await setup_entry(
+        hass, make_entry(title="Second", holidays={"Halloween": {"days_as_soon": 10}})
+    )
+    assert get_state(hass, sensor_id(hass, entry2, "Halloween")).attributes["icon"] == (
+        "mdi:calendar"
+    )
+
+
+async def test_unknown_when_holiday_missing_from_api_data(hass: HomeAssistant) -> None:
+    entry = await setup_entry(hass, make_entry(holidays={"Nonexistent Day": {}}))
+    assert get_state(hass, sensor_id(hass, entry, "Nonexistent Day")).state == "unknown"
+
+
+async def test_instance_defaults_apply_and_overrides_win(hass: HomeAssistant) -> None:
+    defaults = {
+        "icon_normal": "mdi:star",
+        "icon_today": "mdi:star-circle",
+        "icon_soon": "mdi:star-half",
+        "days_as_soon": 3,
+        "date_format": "%d/%m/%Y",
+        "unit_of_measurement": "d",
+    }
+    entry = await setup_entry(
+        hass,
+        make_entry(
+            defaults=defaults,
+            holidays={"Halloween": {}, "Christmas Day": {"icon_normal": "mdi:tree"}},
+        ),
+    )
+    halloween = get_state(hass, sensor_id(hass, entry, "Halloween"))
+    assert halloween.attributes["icon"] == "mdi:star"
+    assert halloween.attributes["date"] == "31/10/2026"
+    assert halloween.attributes["unit_of_measurement"] == "d"
+
+    christmas = get_state(hass, sensor_id(hass, entry, "Christmas Day"))
+    assert christmas.attributes["icon"] == "mdi:tree"
+    assert christmas.attributes["date"] == "25/12/2026"
+
+
+async def test_custom_name_changes_friendly_name_only(hass: HomeAssistant) -> None:
+    entry = await setup_entry(hass, make_entry(holidays={"Christmas Day": {"name": "Xmas"}}))
+    entity_id = sensor_id(hass, entry, "Christmas Day")
+
+    assert get_state(hass, entity_id).attributes["friendly_name"] == "Xmas"
+
+
+async def test_next_holiday_reports_soonest_tracked_holiday(hass: HomeAssistant) -> None:
+    entry = await setup_entry(
+        hass, make_entry(holidays={"Christmas Day": {}, "Halloween": {}, "Independence Day": {}})
+    )
+    state = get_state(hass, entity_id_for(hass, "sensor", entry, "next_holiday"))
+
+    assert state.state == "Halloween"
+    assert state.attributes["days"] == (date(2026, 10, 31) - TODAY).days
+
+
+async def test_next_holiday_uses_custom_name(hass: HomeAssistant) -> None:
+    entry = await setup_entry(
+        hass, make_entry(holidays={"Halloween": {"name": "Spooky Day"}, "Christmas Day": {}})
+    )
+    state = get_state(hass, entity_id_for(hass, "sensor", entry, "next_holiday"))
+    assert state.state == "Spooky Day"
+
+
+async def test_next_holiday_unknown_without_matches(hass: HomeAssistant) -> None:
+    entry = await setup_entry(hass, make_entry(holidays={"Nonexistent Day": {}}))
+    state = get_state(hass, entity_id_for(hass, "sensor", entry, "next_holiday"))
+
+    assert state.state == "unknown"
+    assert state.attributes["days"] is None
+
+
+async def test_forced_update_reuses_the_daily_cache(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    """Re-polling a sensor on the same day makes no further API calls."""
+    entry = await setup_entry(hass, make_entry())
+    calls_after_setup = len(fake_api.calls)
+
+    assert await async_setup_component(hass, "homeassistant", {})
+    await hass.services.async_call(
+        "homeassistant",
+        "update_entity",
+        {"entity_id": [sensor_id(hass, entry, "Halloween")]},
+        blocking=True,
+    )
+
+    assert len(fake_api.calls) == calls_after_setup

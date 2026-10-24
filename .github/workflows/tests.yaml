@@ -17,4 +17,4 @@ jobs:
       - name: Install test dependencies
         run: pip install -r requirements_test.txt
       - name: Run tests
-        run: pytest tests/
+        run: pytest --cov=custom_components.calendarific --cov-report=term-missing

@@ -1,12 +1,12 @@
 """Unit tests for the Calendarific API client and holiday cache (api.py).
 
 These exercise pure logic only, via monkeypatched requests.get/calendarificAPI.holidays -
-no network access and no homeassistant dependency required.
+no network access required.
 """
 import json
 from datetime import date, timedelta
 
-import api
+from custom_components.calendarific import api
 
 
 class FakeResponse:

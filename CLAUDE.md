@@ -10,7 +10,17 @@ This is a Home Assistant custom integration (distributed via HACS) that creates 
 
 ## Validation / commands
 
-There is no local test suite and no lint/build step. Integration correctness is validated by Home Assistant's `hassfest` tool via GitHub Actions (`.github/workflows/hassfest.yaml`), which runs on every push and PR. To validate locally, use the official HA hassfest Docker image, or push to a branch and check the workflow result.
+There is no build step. Integration correctness is validated by Home Assistant's `hassfest` tool via GitHub Actions (`.github/workflows/hassfest.yaml`) and by the pytest suite (`.github/workflows/tests.yaml`), both on every push and PR. To run hassfest locally, use the official HA hassfest Docker image, or push to a branch and check the workflow result.
+
+```sh
+python3.13 -m venv .venv && source .venv/bin/activate
+pip install -r requirements_test.txt
+pytest --cov=custom_components.calendarific --cov-report=term-missing
+```
+
+Tests use `pytest-homeassistant-custom-component` to run a real in-memory Home Assistant. `tests/conftest.py` provides `fake_api` (replaces the HTTP layer with canned holiday data and records calls) and `frozen_today` (freezes time at 2026-10-24); `tests/common.py` has the entry/sensor helpers. Always look entities up by unique ID suffix (`entity_id_for`, `sensor_id`) rather than hard-coding entity IDs. Two tests are `xfail` documenting known calendar defects; remove the marker when fixing them.
+
+Progress towards the Platinum tier of the HA integration quality scale (a self-imposed yardstick; HA doesn't grade custom integrations) is tracked per rule in `custom_components/calendarific/quality_scale.yaml`. Keep it current when behavior changes.
 
 ## Architecture
 
