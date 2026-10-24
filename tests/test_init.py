@@ -10,7 +10,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.calendarific.const import DOMAIN
 from custom_components.calendarific.coordinator import CalendarificCoordinator
 
-from .common import entity_id_for, make_entry, setup_entry
+from .common import entity_id_for, make_entry, setup_entry, state_of
 from .conftest import FakeApi
 
 import pytest
@@ -74,11 +74,11 @@ async def test_unload_and_reload(hass: HomeAssistant, fake_api: FakeApi) -> None
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
-    assert entry.state is ConfigEntryState.NOT_LOADED
+    assert state_of(entry) is ConfigEntryState.NOT_LOADED
 
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    assert entry.state is ConfigEntryState.LOADED
+    assert state_of(entry) is ConfigEntryState.LOADED
 
 
 async def test_options_flow_reloads_entry(hass: HomeAssistant, fake_api: FakeApi) -> None:

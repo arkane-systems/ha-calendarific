@@ -115,7 +115,7 @@ class CalendarificClient:
         self, country: str, year: int, state: str = ""
     ) -> list[Holiday]:
         """Fetch the holidays for a country (and optionally state) in a given year."""
-        params = {
+        params: dict[str, str | int] = {
             "api_key": self._api_key,
             "country": country,
             "year": year,

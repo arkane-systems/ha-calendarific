@@ -15,12 +15,15 @@ There is no build step. Integration correctness is validated by Home Assistant's
 ```sh
 python3.13 -m venv .venv && source .venv/bin/activate
 pip install -r requirements_test.txt
-pytest --cov=custom_components.calendarific --cov-report=term-missing
+pytest --cov=custom_components.calendarific --cov-report=term-missing --cov-fail-under=95
+mypy
 ```
+
+CI (`tests.yaml`) runs exactly those two commands: the suite with a 95% coverage floor (currently 100% of every module) and `mypy` in strict mode over both `custom_components/` and `tests/` (config in `mypy.ini`, mirroring core's strict settings; `py.typed` marks the package as typed). Keep both green.
 
 Tests use `pytest-homeassistant-custom-component` to run a real in-memory Home Assistant. `tests/conftest.py` provides `fake_api` (replaces the HTTP layer with canned holiday data and records calls) and `frozen_today` (freezes time at 2026-10-24); `tests/common.py` has the entry/sensor helpers. Always look entities up by unique ID suffix (`entity_id_for`, `sensor_id`) rather than hard-coding entity IDs.
 
-Progress towards the Platinum tier of the HA integration quality scale (a self-imposed yardstick; HA doesn't grade custom integrations) is tracked per rule in `custom_components/calendarific/quality_scale.yaml`. Keep it current when behavior changes.
+The integration is held to the Platinum tier of the HA integration quality scale as a self-imposed yardstick (HA doesn't grade custom integrations). Every rule is met or exempt, with the rationale for each exemption, in `custom_components/calendarific/quality_scale.yaml`; keep it current when behavior changes, and don't let a change regress a rule (for example, new user-facing strings need `strings.json`, `en.json` and `data_description` entries, which `tests/test_translations.py` enforces).
 
 ## Architecture
 

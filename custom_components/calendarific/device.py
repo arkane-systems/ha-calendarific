@@ -1,7 +1,9 @@
 """Shared device info helper for Calendarific entities."""
+
+from __future__ import annotations
+
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.device_registry import DeviceEntryType
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 
 from .const import (
     CONF_COUNTRY,

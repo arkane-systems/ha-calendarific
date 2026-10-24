@@ -1,7 +1,7 @@
 # Self-assessment against the Home Assistant integration quality scale:
 # https://contributors.home-assistant.io/core/quality-scale/rules/
 # Home Assistant does not grade custom integrations; this file tracks the yardstick.
-# The target is Platinum. Rules marked `todo` are not yet met.
+# All rules are met or exempt, which is Platinum.
 rules:
   # Bronze
   action-setup:
@@ -27,7 +27,7 @@ rules:
     comment: The integration does not provide any conditions.
   docs-high-level-description: done
   docs-installation-instructions: done
-  docs-removal-instructions: todo
+  docs-removal-instructions: done
   docs-triggers:
     status: exempt
     comment: The integration does not provide any triggers.
@@ -58,8 +58,8 @@ rules:
     status: exempt
     comment: The integration does not provide any service actions.
   config-entry-unloading: done
-  docs-configuration-parameters: todo
-  docs-installation-parameters: todo
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
   entity-unavailable:
     status: done
     comment: >
@@ -80,15 +80,15 @@ rules:
   discovery:
     status: exempt
     comment: The integration is a cloud service and cannot be discovered.
-  docs-data-update: todo
-  docs-examples: todo
-  docs-known-limitations: todo
+  docs-data-update: done
+  docs-examples: done
+  docs-known-limitations: done
   docs-supported-devices:
     status: exempt
     comment: The integration talks to a cloud API; each instance is one virtual device.
-  docs-supported-functions: todo
-  docs-troubleshooting: todo
-  docs-use-cases: todo
+  docs-supported-functions: done
+  docs-troubleshooting: done
+  docs-use-cases: done
   dynamic-devices:
     status: exempt
     comment: Each config entry has exactly one device.
@@ -135,4 +135,6 @@ rules:
   inject-websession:
     status: done
     comment: CalendarificClient takes Home Assistant's shared aiohttp session.
-  strict-typing: todo
+  strict-typing:
+    status: done
+    comment: mypy runs in strict mode over the integration and its tests in CI.

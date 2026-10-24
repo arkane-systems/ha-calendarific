@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 from homeassistant.core import HomeAssistant
 import pytest
@@ -29,7 +29,7 @@ async def _events(
         return_response=True,
     )
     assert response is not None
-    events: list[dict[str, Any]] = response[entity_id]["events"]
+    events: list[dict[str, Any]] = cast(dict[str, Any], response[entity_id])["events"]
     return events
 
 
@@ -98,7 +98,7 @@ async def test_calendar_range_end_is_exclusive(hass: HomeAssistant) -> None:
     )
 
     assert response is not None
-    assert response[entity_id]["events"] == []
+    assert cast(dict[str, Any], response[entity_id])["events"] == []
 
 
 async def test_calendar_event_is_today_s_holiday_when_there_is_one(hass: HomeAssistant) -> None:

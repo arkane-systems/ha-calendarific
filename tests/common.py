@@ -95,6 +95,12 @@ async def setup_entry(hass: HomeAssistant, entry: MockConfigEntry) -> MockConfig
     return entry
 
 
+def state_of(entry: MockConfigEntry) -> ConfigEntryState:
+    """Return an entry's current state (as a function, so type narrowing can't go stale)."""
+    state: ConfigEntryState = entry.state
+    return state
+
+
 def get_state(hass: HomeAssistant, entity_id: str) -> State:
     """Return an entity's state, failing the test if it has none."""
     state = hass.states.get(entity_id)
