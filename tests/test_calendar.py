@@ -64,14 +64,6 @@ async def test_calendar_uses_sensor_custom_names(hass: HomeAssistant) -> None:
     assert [event["summary"] for event in events] == ["Spooky Day"]
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "Known bug: the calendar's current event is the last sensor iterated, not the soonest. "
-        "Iteration order follows sensor registration order, which is timing-dependent, so this "
-        "occasionally passes by luck and cannot be a strict xfail"
-    ),
-)
 async def test_calendar_event_is_the_soonest_upcoming_holiday(hass: HomeAssistant) -> None:
     entry = await setup_entry(hass, make_entry())
     state = get_state(hass, entity_id_for(hass, "calendar", entry, "calendar"))
@@ -79,10 +71,6 @@ async def test_calendar_event_is_the_soonest_upcoming_holiday(hass: HomeAssistan
     assert state.attributes["message"] == "Halloween"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Known limitation: only each holiday's next occurrence is exposed, so passed ones vanish",
-)
 async def test_calendar_shows_holidays_already_passed_this_year(hass: HomeAssistant) -> None:
     entry = await setup_entry(hass, make_entry(holidays={"Independence Day": {}}))
     entity_id = entity_id_for(hass, "calendar", entry, "calendar")
@@ -90,3 +78,32 @@ async def test_calendar_shows_holidays_already_passed_this_year(hass: HomeAssist
     events = await _events(hass, entity_id, date(2026, 7, 1), date(2026, 7, 31))
 
     assert [event["summary"] for event in events] == ["Independence Day"]
+
+
+async def test_calendar_range_end_is_exclusive(hass: HomeAssistant) -> None:
+    """A range ending at midnight on a holiday's date does not include that holiday."""
+    entry = await setup_entry(hass, make_entry(holidays={"Halloween": {}}))
+    entity_id = entity_id_for(hass, "calendar", entry, "calendar")
+
+    response = await hass.services.async_call(
+        "calendar",
+        "get_events",
+        {
+            "entity_id": entity_id,
+            "start_date_time": "2026-10-30 00:00:00",
+            "end_date_time": "2026-10-31 00:00:00",
+        },
+        blocking=True,
+        return_response=True,
+    )
+
+    assert response is not None
+    assert response[entity_id]["events"] == []
+
+
+async def test_calendar_event_is_today_s_holiday_when_there_is_one(hass: HomeAssistant) -> None:
+    entry = await setup_entry(hass, make_entry(holidays={"Founders Day": {}, "Halloween": {}}))
+    state = get_state(hass, entity_id_for(hass, "calendar", entry, "calendar"))
+
+    assert state.state == "on"
+    assert state.attributes["message"] == "Founders Day"

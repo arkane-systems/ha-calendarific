@@ -1,14 +1,23 @@
 """ config flow """
+from collections.abc import Mapping
 import logging
+from typing import Any
 
 import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.util import dt as dt_util
 
-from .api import fetch_holiday_names
+from .api import (
+    CalendarificAuthError,
+    CalendarificClient,
+    CalendarificError,
+    CalendarificRateLimitError,
+)
 from .const import (
     DOMAIN,
     CONF_API_KEY,
@@ -33,6 +42,24 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 CONF_RESET_TO_DEFAULT = "reset_to_default"
+
+
+async def _async_fetch_holiday_names(
+    hass: HomeAssistant, api_key: str, country: str, state: str
+) -> list[str]:
+    """Return the distinct holiday names available for a country/state this year."""
+    client = CalendarificClient(async_get_clientsession(hass), api_key)
+    holidays = await client.async_get_holidays(country, dt_util.now().year, state)
+    return list(dict.fromkeys(holiday.name for holiday in holidays))
+
+
+def _error_key(err: CalendarificError) -> str:
+    """Map an API error to the translation key shown to the user."""
+    if isinstance(err, CalendarificAuthError):
+        return "invalid_auth"
+    if isinstance(err, CalendarificRateLimitError):
+        return "rate_limited"
+    return "cannot_connect"
 
 
 def _hardcoded_defaults() -> dict:
@@ -113,16 +140,17 @@ class CalendarificConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_STATE: state,
             }
             self._title = user_input.get(CONF_NAME) or _default_title(country, state)
-            self._holiday_list = await self.hass.async_add_executor_job(
-                fetch_holiday_names,
-                self._instance_data[CONF_API_KEY],
-                country,
-                state,
-            )
-            if not self._holiday_list:
-                errors["base"] = "no_holidays_found"
+            try:
+                self._holiday_list = await _async_fetch_holiday_names(
+                    self.hass, self._instance_data[CONF_API_KEY], country, state
+                )
+            except CalendarificError as err:
+                errors["base"] = _error_key(err)
             else:
-                return await self.async_step_defaults()
+                if not self._holiday_list:
+                    errors["base"] = "no_holidays_found"
+                else:
+                    return await self.async_step_defaults()
 
         schema = vol.Schema(
             {
@@ -164,18 +192,49 @@ class CalendarificConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         return self.async_show_form(step_id="holidays", data_schema=schema, errors=errors)
 
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]):
+        """The API key was rejected: ask for a new one."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(self, user_input=None):
+        """Collect and verify a replacement API key."""
+        errors = {}
+        entry = self._get_reauth_entry()
+        if user_input is not None:
+            try:
+                await _async_fetch_holiday_names(
+                    self.hass,
+                    user_input[CONF_API_KEY],
+                    entry.data[CONF_COUNTRY],
+                    entry.data[CONF_STATE],
+                )
+            except CalendarificError as err:
+                errors["base"] = _error_key(err)
+            else:
+                return self.async_update_reload_and_abort(
+                    entry, data_updates={CONF_API_KEY: user_input[CONF_API_KEY]}
+                )
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema({vol.Required(CONF_API_KEY): cv.string}),
+            errors=errors,
+            description_placeholders={"title": entry.title},
+        )
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
         return CalendarificOptionsFlowHandler()
 
 
-class CalendarificOptionsFlowHandler(config_entries.OptionsFlow):
+class CalendarificOptionsFlowHandler(config_entries.OptionsFlowWithReload):
     """Manage an existing instance: its holidays, its defaults, and per-holiday overrides.
 
-    Deliberately doesn't set self.config_entry in __init__ - recent HA
-    versions populate it automatically before async_step_init runs, and
-    assigning it here raises rather than just warning.
+    Reloads the entry automatically when the options change. Deliberately
+    doesn't set self.config_entry in __init__ - recent HA versions populate it
+    automatically before async_step_init runs, and assigning it here raises
+    rather than just warning.
     """
 
     def __init__(self) -> None:
@@ -184,8 +243,8 @@ class CalendarificOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def _fetch_holiday_list(self):
         if not self._holiday_list:
-            self._holiday_list = await self.hass.async_add_executor_job(
-                fetch_holiday_names,
+            self._holiday_list = await _async_fetch_holiday_names(
+                self.hass,
                 self.config_entry.data[CONF_API_KEY],
                 self.config_entry.data[CONF_COUNTRY],
                 self.config_entry.data[CONF_STATE],
@@ -219,7 +278,10 @@ class CalendarificOptionsFlowHandler(config_entries.OptionsFlow):
         """Add or remove holidays. Removing one discards any override it had."""
         errors = {}
         current_holidays = self.config_entry.options.get(CONF_HOLIDAYS, {})
-        holiday_list = await self._fetch_holiday_list()
+        try:
+            holiday_list = await self._fetch_holiday_list()
+        except CalendarificError as err:
+            return self.async_abort(reason=_error_key(err))
 
         if user_input is not None:
             selected = user_input[CONF_HOLIDAYS]

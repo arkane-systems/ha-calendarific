@@ -40,12 +40,6 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     CONF_UNIT_OF_MEASUREMENT: "days",
 }
 
-API_ERROR: dict[str, Any] = {
-    "error": "Invalid API key.",
-    "meta": {"code": 401, "error_detail": "Invalid API key."},
-}
-
-
 def make_holiday(name: str, when: date, description: str | None = None) -> dict[str, Any]:
     """Build one holiday record in the shape the Calendarific API returns."""
     return {
@@ -56,7 +50,7 @@ def make_holiday(name: str, when: date, description: str | None = None) -> dict[
 
 
 def default_holidays_by_year() -> dict[int, list[dict[str, Any]]]:
-    """Return a small two-year holiday set relative to TODAY (2026-10-24)."""
+    """Return a small holiday set for 2026-2028, relative to TODAY (2026-10-24)."""
     names_and_days = [
         ("Independence Day", (7, 4)),  # already passed in 2026
         ("Founders Day", (10, 24)),  # today in 2026
@@ -65,7 +59,7 @@ def default_holidays_by_year() -> dict[int, list[dict[str, Any]]]:
     ]
     return {
         year: [make_holiday(name, date(year, month, day)) for name, (month, day) in names_and_days]
-        for year in (2026, 2027)
+        for year in (2026, 2027, 2028)
     }
 
 

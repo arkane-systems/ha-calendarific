@@ -1,11 +1,15 @@
 {
     "config": {
         "abort": {
-            "no_holidays_found": "No holidays found. Ensure that you have configured a valid country, state and api key."
+            "no_holidays_found": "No holidays found. Ensure that you have configured a valid country, state and api key.",
+            "reauth_successful": "The API key was updated."
         },
         "error": {
             "no_holidays_found": "No holidays found. Ensure that you have configured a valid country, state and api key.",
-            "no_holidays_selected": "Select at least one holiday."
+            "no_holidays_selected": "Select at least one holiday.",
+            "invalid_auth": "The API key was rejected. Check that it is correct and that your Calendarific subscription is active.",
+            "cannot_connect": "Could not reach Calendarific. Check your network connection and try again.",
+            "rate_limited": "Your Calendarific account has reached its monthly request limit. Try again later or upgrade your plan."
         },
         "step": {
             "user": {
@@ -36,12 +40,22 @@
                 "data": {
                     "holidays": "Holidays"
                 }
+            },
+            "reauth_confirm": {
+                "title": "Re-enter your Calendarific API key",
+                "description": "Calendarific rejected the API key for {title}. Enter a valid key to resume updates.",
+                "data": {
+                    "api_key": "Your Calendarific API key"
+                }
             }
         }
     },
     "options": {
         "abort": {
-            "no_holidays_configured": "This instance has no holidays configured yet. Add some first."
+            "no_holidays_configured": "This instance has no holidays configured yet. Add some first.",
+            "invalid_auth": "The API key was rejected. Check that it is correct and that your Calendarific subscription is active.",
+            "cannot_connect": "Could not reach Calendarific. Check your network connection and try again.",
+            "rate_limited": "Your Calendarific account has reached its monthly request limit. Try again later or upgrade your plan."
         },
         "error": {
             "no_holidays_selected": "Select at least one holiday."

@@ -8,13 +8,13 @@ rules:
     status: exempt
     comment: The integration does not provide any service actions.
   appropriate-polling:
-    status: todo
-    comment: Every entity polls on the default 30 second interval; a coordinator should fetch once per day.
+    status: done
+    comment: >
+      One coordinator fetches this year's and next year's holidays once a day. A
+      local-midnight timer recomputes day counts without any request.
   brands: done
-  common-modules:
-    status: todo
-    comment: There is no coordinator.py or entity.py yet.
-  config-flow-test-coverage: todo
+  common-modules: done
+  config-flow-test-coverage: done
   config-flow:
     status: todo
     comment: The form fields have no data_description entries.
@@ -35,7 +35,9 @@ rules:
     comment: The integration does not provide any triggers.
   entity-event-setup:
     status: exempt
-    comment: No entity currently subscribes to events.
+    comment: >
+      Entities only listen to the coordinator, through CoordinatorEntity. The
+      midnight timer belongs to the coordinator and is released on unload.
   entity-unique-id: done
   has-entity-name:
     status: exempt
@@ -43,15 +45,9 @@ rules:
       Holiday sensors are deliberately named after the holiday itself (for example
       "Christmas Day"). Prefixing the instance title would yield names such as
       "Calendarific (US - KS) Christmas Day" and long entity IDs.
-  runtime-data:
-    status: todo
-    comment: Per-entry state lives in a flat hass.data dictionary.
-  test-before-configure:
-    status: todo
-    comment: The config flow fetches the holiday list but reports every failure as "no holidays found".
-  test-before-setup:
-    status: todo
-    comment: API failures are swallowed and setup always succeeds.
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
   unique-config-entry:
     status: todo
     comment: Config entries have no unique ID, so a country/state can be added twice.
@@ -63,11 +59,15 @@ rules:
   config-entry-unloading: done
   docs-configuration-parameters: todo
   docs-installation-parameters: todo
-  entity-unavailable: todo
+  entity-unavailable:
+    status: done
+    comment: >
+      Entities keep serving cached data through an outage while it still covers
+      today, and become unavailable once it does not.
   integration-owner: done
-  log-when-unavailable: todo
-  parallel-updates: todo
-  reauthentication-flow: todo
+  log-when-unavailable: done
+  parallel-updates: done
+  reauthentication-flow: done
   test-coverage: todo
 
   # Gold
@@ -109,7 +109,9 @@ rules:
 
   # Platinum
   async-dependency:
-    status: todo
-    comment: The API client uses synchronous requests in the executor.
-  inject-websession: todo
+    status: done
+    comment: The API client is an in-tree aiohttp client; there is no separate library.
+  inject-websession:
+    status: done
+    comment: CalendarificClient takes Home Assistant's shared aiohttp session.
   strict-typing: todo

@@ -8,6 +8,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.calendarific.const import DOMAIN
+from custom_components.calendarific.coordinator import CalendarificCoordinator
 
 from .common import entity_id_for, make_entry, setup_entry
 from .conftest import FakeApi
@@ -80,16 +81,25 @@ async def test_unload_and_reload(hass: HomeAssistant, fake_api: FakeApi) -> None
     assert entry.state is ConfigEntryState.LOADED
 
 
-async def test_options_change_reloads_entry(hass: HomeAssistant, fake_api: FakeApi) -> None:
-    """Updating the entry's options reloads it, creating the newly added sensor."""
+async def test_options_flow_reloads_entry(hass: HomeAssistant, fake_api: FakeApi) -> None:
+    """Saving options through the flow reloads the entry, creating the added sensor."""
     entry = await setup_entry(hass, make_entry(holidays={"Halloween": {}}))
     registry = er.async_get(hass)
     assert registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_christmas_day") is None
 
-    hass.config_entries.async_update_entry(
-        entry, options={**entry.options, "holidays": {"Halloween": {}, "Christmas Day": {}}}
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"action": "holidays"}
+    )
+    await hass.config_entries.options.async_configure(
+        result["flow_id"], {"holidays": ["Halloween", "Christmas Day"]}
     )
     await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.LOADED
     assert registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_christmas_day")
+
+
+async def test_runtime_data_holds_the_coordinator(hass: HomeAssistant, fake_api: FakeApi) -> None:
+    entry = await setup_entry(hass, make_entry())
+    assert isinstance(entry.runtime_data, CalendarificCoordinator)

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from aiohttp import ClientError
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 import pytest
@@ -18,7 +20,7 @@ from custom_components.calendarific.const import (
     DOMAIN,
 )
 
-from .common import API_ERROR, DEFAULT_SETTINGS, make_entry, setup_entry
+from .common import DEFAULT_SETTINGS, make_entry, setup_entry
 from .conftest import FakeApi
 
 pytestmark = pytest.mark.usefixtures("frozen_today")
@@ -104,22 +106,34 @@ async def test_user_flow_errors_when_no_holidays_found(
     assert result["errors"] == {"base": "no_holidays_found"}
 
 
-async def test_user_flow_errors_when_api_rejects_key(
-    hass: HomeAssistant, fake_api: FakeApi
+@pytest.mark.parametrize(
+    ("break_api", "error"),
+    [
+        (lambda api: api.fail(401, "Invalid API key."), "invalid_auth"),
+        (lambda api: api.fail(403, "Subscription expired."), "invalid_auth"),
+        (lambda api: api.fail(429, "Limit reached."), "rate_limited"),
+        (lambda api: api.fail(500, "Down."), "cannot_connect"),
+        (lambda api: api.raise_error(ClientError()), "cannot_connect"),
+        (lambda api: api.raise_error(TimeoutError()), "cannot_connect"),
+    ],
+)
+async def test_user_flow_reports_why_the_api_failed(
+    hass: HomeAssistant, fake_api: FakeApi, break_api: Any, error: str
 ) -> None:
-    fake_api.error = API_ERROR
+    break_api(fake_api)
     result = await _start_user_flow(hass, {CONF_API_KEY: "bad", CONF_COUNTRY: "US"})
 
     assert result["type"] is FlowResultType.FORM
-    assert result["errors"] == {"base": "no_holidays_found"}
+    assert result["step_id"] == "user"
+    assert result["errors"] == {"base": error}
 
 
 async def test_user_flow_recovers_after_error(hass: HomeAssistant, fake_api: FakeApi) -> None:
-    fake_api.error = API_ERROR
+    fake_api.fail(401, "Invalid API key.")
     result = await _start_user_flow(hass, {CONF_API_KEY: "bad", CONF_COUNTRY: "US"})
-    assert result["errors"] == {"base": "no_holidays_found"}
+    assert result["errors"] == {"base": "invalid_auth"}
 
-    fake_api.error = None
+    fake_api.recover()
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {CONF_API_KEY: "good", CONF_COUNTRY: "US"}
     )
@@ -298,3 +312,85 @@ async def test_options_customize_aborts_without_holidays(
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "no_holidays_configured"
+
+
+@pytest.mark.parametrize(
+    ("status", "reason"), [(401, "invalid_auth"), (429, "rate_limited"), (500, "cannot_connect")]
+)
+async def test_options_holidays_aborts_when_the_api_fails(
+    hass: HomeAssistant, fake_api: FakeApi, status: int, reason: str
+) -> None:
+    entry = await setup_entry(hass, make_entry())
+    fake_api.fail(status)
+
+    result = await _open_options(hass, entry.entry_id, "holidays")
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == reason
+
+
+# -- reauth flow ----------------------------------------------------------------
+
+
+async def _entry_needing_reauth(hass: HomeAssistant, fake_api: FakeApi) -> Any:
+    """Set up an entry whose key the API rejects, leaving a reauth flow in progress."""
+    fake_api.fail(401, "Invalid API key.")
+    entry = make_entry(api_key="revoked")
+    entry.add_to_hass(hass)
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    return entry
+
+
+async def test_reauth_updates_the_key_and_reloads(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    entry = await _entry_needing_reauth(hass, fake_api)
+    [flow] = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert flow["context"]["source"] == config_entries.SOURCE_REAUTH
+
+    result = await hass.config_entries.flow.async_configure(flow["flow_id"])
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "reauth_confirm"
+
+    fake_api.recover()
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_API_KEY: "renewed"}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reauth_successful"
+    assert entry.data[CONF_API_KEY] == "renewed"
+    assert entry.state is ConfigEntryState.LOADED
+    assert fake_api.calls[-1]["api_key"] == "renewed"
+
+
+async def test_reauth_rejects_a_bad_replacement_key(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    entry = await _entry_needing_reauth(hass, fake_api)
+    [flow] = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+
+    result = await hass.config_entries.flow.async_configure(
+        flow["flow_id"], {CONF_API_KEY: "still-bad"}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "invalid_auth"}
+    assert entry.data[CONF_API_KEY] == "revoked"
+
+
+async def test_reauth_reports_connection_problems(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    await _entry_needing_reauth(hass, fake_api)
+    [flow] = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+
+    fake_api.fail(500)
+    result = await hass.config_entries.flow.async_configure(
+        flow["flow_id"], {CONF_API_KEY: "renewed"}
+    )
+
+    assert result["errors"] == {"base": "cannot_connect"}

@@ -63,7 +63,7 @@ This integration isn't yet in HACS's default store, so for now it needs to be ad
 
 ## Setting up an instance
 
-You will need an API key from Calendarific. Go to the [sign up page](https://calendarific.com/signup) and open a new account. A free tier account is limited to 1000 API calls per month. Each instance makes two calls per day (and two on Home Assistant start).
+You will need an API key from Calendarific. Go to the [sign up page](https://calendarific.com/signup) and open a new account. A free tier account is limited to 500 API calls per month, and failed requests count too. Each instance makes two calls per day, plus two whenever Home Assistant starts or the instance is reloaded (for example after you change its holidays). If Calendarific can't be reached, the integration keeps using the holidays it last fetched and retries every few hours.
 
 In Settings/Devices & Services click **+ Add Integration**, select **Calendarific**, and:
 

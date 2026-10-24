@@ -1,126 +1,185 @@
-"""Calendarific API client and holiday cache."""
+"""Calendarific API client and holiday data model.
+
+This module deliberately has no homeassistant dependency: the HTTP session is
+injected by the caller, and "today" is always passed in rather than read from
+the system clock (which is not necessarily Home Assistant's configured time
+zone).
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from datetime import date
+from http import HTTPStatus
 import json
-import logging
+from typing import Any
 
-import requests
+from aiohttp import ClientError, ClientSession, ClientTimeout
 
-_LOGGER = logging.getLogger(__name__)
-
-
-class calendarificAPI:
-    api_key = None
-
-    def __init__(self, api_key):
-        self.api_key = api_key
-
-    def holidays(self, parameters):
-        url = 'https://calendarific.com/api/v2/holidays?'
-
-        if 'api_key' not in parameters:
-            parameters['api_key'] = self.api_key
-
-        response = requests.get(url, params=parameters, timeout=15)
-        data     = json.loads(response.text)
-
-        if response.status_code != 200:
-            if 'error' not in data:
-                data['error'] = 'Unknown error.'
-
-        return data
+API_URL = "https://calendarific.com/api/v2/holidays"
+REQUEST_TIMEOUT = 15
 
 
-def fetch_holiday_names(api_key, country, state):
-    """Fetch the list of holiday names available for a country/state, or [] on error."""
-    params = {'country': country, 'year': date.today().year, 'location': state}
-    response = calendarificAPI(api_key).holidays(params)
-    if 'error' in response:
-        return []
-    return [item['name'] for item in response['response']['holidays']]
+class CalendarificError(Exception):
+    """Base class for errors talking to Calendarific."""
 
 
-class CalendarificApiReader:
+class CalendarificConnectionError(CalendarificError):
+    """The API could not be reached or returned something unusable (transient)."""
 
-    def __init__(self, api_key, country, state, today=None):
-        self._country = country
-        self._state = state
+
+class CalendarificRateLimitError(CalendarificError):
+    """The account's monthly request limit has been reached."""
+
+
+class CalendarificAuthError(CalendarificError):
+    """The API key is missing, invalid or its subscription has expired."""
+
+
+@dataclass(frozen=True, slots=True)
+class Holiday:
+    """One occurrence of a holiday."""
+
+    name: str
+    description: str
+    day: date
+
+
+@dataclass(frozen=True, slots=True)
+class HolidayData:
+    """Holidays for one or more consecutive calendar years."""
+
+    by_year: Mapping[int, Mapping[str, Holiday]]
+
+    @classmethod
+    def from_lists(cls, lists: Mapping[int, Iterable[Holiday]]) -> HolidayData:
+        """Index each year's holidays by name (the first of any duplicates wins)."""
+        by_year: dict[int, dict[str, Holiday]] = {}
+        for year, holidays in lists.items():
+            named: dict[str, Holiday] = {}
+            for holiday in holidays:
+                named.setdefault(holiday.name, holiday)
+            by_year[year] = named
+        return cls(by_year)
+
+    def covers(self, today: date) -> bool:
+        """Whether this data includes the whole of today's year."""
+        return today.year in self.by_year
+
+    def next_occurrence(self, name: str, today: date) -> Holiday | None:
+        """Return the first occurrence of a holiday on or after today, if known."""
+        for year in sorted(self.by_year):
+            if year < today.year:
+                continue
+            holiday = self.by_year[year].get(name)
+            if holiday is not None and holiday.day >= today:
+                return holiday
+        return None
+
+    def next_holiday(self, names: Iterable[str], today: date) -> Holiday | None:
+        """Return the soonest upcoming holiday among names; ties break on name."""
+        candidates = [
+            holiday
+            for name in names
+            if (holiday := self.next_occurrence(name, today)) is not None
+        ]
+        return min(candidates, key=lambda holiday: (holiday.day, holiday.name), default=None)
+
+    def occurrences(self, names: Iterable[str], start: date, end: date) -> list[Holiday]:
+        """Return every occurrence of the named holidays between start and end inclusive."""
+        wanted = list(names)
+        found = [
+            holiday
+            for year in range(start.year, end.year + 1)
+            for name in wanted
+            if (holiday := self.by_year.get(year, {}).get(name)) is not None
+            and start <= holiday.day <= end
+        ]
+        return sorted(found, key=lambda holiday: (holiday.day, holiday.name))
+
+
+class CalendarificClient:
+    """Thin async wrapper around the Calendarific v2 holidays endpoint."""
+
+    def __init__(self, session: ClientSession, api_key: str) -> None:
+        """Initialize the client with an aiohttp session owned by the caller."""
+        self._session = session
         self._api_key = api_key
-        self._lastupdated = None
-        _LOGGER.debug("apiReader loaded")
-        self._holidays = []
-        self._next_holidays = []
-        self._error_logged = False
-        self.update(today)
 
-    def get_state(self):
-        return "new"
-
-    def get_date(self, holiday_name, today=None):
-        # today is caller-supplied so HA-aware callers can pass a timezone-correct
-        # "today" (see sensor.py) instead of the system clock's local date, which
-        # is often UTC and would roll the day over at the wrong wall-clock time.
-        today = today or date.today()
+    async def async_get_holidays(
+        self, country: str, year: int, state: str = ""
+    ) -> list[Holiday]:
+        """Fetch the holidays for a country (and optionally state) in a given year."""
+        params = {
+            "api_key": self._api_key,
+            "country": country,
+            "year": year,
+            "location": state,
+        }
+        # Exception messages below never include str(err): aiohttp errors can
+        # embed the request URL, which carries the API key.
         try:
-            holiday_datetime = next(i for i in self._holidays if i['name'] == holiday_name)['date']['datetime']
-            testdate = date(holiday_datetime['year'],holiday_datetime['month'],holiday_datetime['day'])
-            if testdate < today:
-                holiday_datetime = next(i for i in self._next_holidays if i['name'] == holiday_name)['date']['datetime']
-                testdate = date(holiday_datetime['year'],holiday_datetime['month'],holiday_datetime['day'])
-            return testdate
-        except Exception:
-            return "-"
+            async with self._session.get(
+                API_URL, params=params, timeout=ClientTimeout(total=REQUEST_TIMEOUT)
+            ) as response:
+                status = response.status
+                body = await response.text()
+        except TimeoutError as err:
+            raise CalendarificConnectionError("Timed out talking to Calendarific") from err
+        except ClientError as err:
+            raise CalendarificConnectionError("Error talking to Calendarific") from err
 
-    def get_description(self,holiday_name):
-        try:
-            return next(i for i in self._holidays if i['name'] == holiday_name)['description']
-        except Exception:
-            return "NOT FOUND"
+        payload = _parse_json(body)
+        code = _meta_code(payload) if status == HTTPStatus.OK else status
+        if code == HTTPStatus.OK:
+            return _parse_holidays(payload)
 
-    def get_next_holiday(self, holiday_names, today=None):
-        """Return (name, date) of the soonest occurrence among holiday_names, or (None, None).
+        detail = _error_detail(payload)
+        if code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+            raise CalendarificAuthError(detail or "Invalid or expired API key")
+        if code == HTTPStatus.TOO_MANY_REQUESTS:
+            raise CalendarificRateLimitError(detail or "Monthly request limit reached")
+        raise CalendarificConnectionError(detail or f"Calendarific returned HTTP {code}")
 
-        Ties (same date) break on name, for a deterministic result. today
-        follows the same caller-supplied convention as get_date() - see the
-        comment there.
-        """
-        today = today or date.today()
-        candidates = []
-        for name in holiday_names:
-            holiday_date = self.get_date(name, today)
-            if holiday_date != "-":
-                candidates.append((holiday_date, name))
-        if not candidates:
-            return (None, None)
-        holiday_date, name = min(candidates)
-        return (name, holiday_date)
 
-    def get_holidays(self):
-        return [item['name'] for item in self._holidays]
+def _parse_json(body: str) -> Any:
+    """Decode a response body, returning None if it is not valid JSON."""
+    try:
+        return json.loads(body)
+    except ValueError:
+        return None
 
-    def update(self, today=None):
-        today = today or date.today()
-        if self._lastupdated == today:
-            return
-        self._lastupdated = today
-        year = today.year
-        params = {'country': self._country,'year': year,'location': self._state}
-        calapi = calendarificAPI(self._api_key)
-        response = calapi.holidays(params)
-        _LOGGER.debug("Updating from Calendarific api")
-        if 'error' in response:
-            if not self._error_logged:
-                _LOGGER.error(response['meta']['error_detail'])
-                self._error_logged = True
-            return
-        self._holidays = response['response']['holidays']
-        params['year'] = year + 1
-        response = calapi.holidays(params)
-        if 'error' in response:
-            if not self._error_logged:
-                _LOGGER.error(response['meta']['error_detail'])
-                self._error_logged = True
-            return
-        self._error_logged = False
-        self._next_holidays = response['response']['holidays']
 
-        return True
+def _meta(payload: Any) -> Mapping[str, Any]:
+    meta = payload.get("meta") if isinstance(payload, dict) else None
+    return meta if isinstance(meta, dict) else {}
+
+
+def _meta_code(payload: Any) -> int:
+    """Return the status the API reports inside a 200 response (200 if absent)."""
+    code = _meta(payload).get("code", HTTPStatus.OK)
+    return code if isinstance(code, int) else HTTPStatus.OK
+
+
+def _error_detail(payload: Any) -> str:
+    detail = _meta(payload).get("error_detail")
+    return str(detail) if detail else ""
+
+
+def _parse_holidays(payload: Any) -> list[Holiday]:
+    try:
+        return [
+            Holiday(
+                name=item["name"],
+                description=item.get("description") or "",
+                day=date(
+                    item["date"]["datetime"]["year"],
+                    item["date"]["datetime"]["month"],
+                    item["date"]["datetime"]["day"],
+                ),
+            )
+            for item in payload["response"]["holidays"]
+        ]
+    except (KeyError, TypeError, ValueError, AttributeError) as err:
+        raise CalendarificConnectionError("Unexpected response from Calendarific") from err

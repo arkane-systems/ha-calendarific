@@ -1,27 +1,18 @@
 """Calendarific Platform"""
-import logging
 
-from homeassistant.config_entries import ConfigEntry
+from __future__ import annotations
+
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError
-from homeassistant.util import dt as dt_util
 
-from .api import CalendarificApiReader
-from .const import (
-    CONF_API_KEY,
-    CONF_COUNTRY,
-    CONF_STATE,
-    DOMAIN,
-    SENSOR_PLATFORM,
-)
+from .const import CONF_API_KEY
+from .coordinator import CalendarificConfigEntry, CalendarificCoordinator
 
 PLATFORMS = [Platform.SENSOR, Platform.CALENDAR]
 
-_LOGGER = logging.getLogger(__name__)
 
-
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: CalendarificConfigEntry) -> bool:
     """Set up a Calendarific instance (one country/state combination) from a config entry."""
     if CONF_API_KEY not in entry.data:
         raise ConfigEntryError(
@@ -29,30 +20,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "longer compatible. Please remove it and add the integration again."
         )
 
-    reader = await hass.async_add_executor_job(
-        CalendarificApiReader,
-        entry.data[CONF_API_KEY],
-        entry.data[CONF_COUNTRY],
-        entry.data[CONF_STATE],
-        dt_util.now().date(),
-    )
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        "apiReader": reader,
-        SENSOR_PLATFORM: {},
-    }
-    entry.async_on_unload(entry.add_update_listener(async_update_options))
+    coordinator = CalendarificCoordinator(hass, entry)
+    await coordinator.async_config_entry_first_refresh()
+    entry.runtime_data = coordinator
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
 
-async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload the entry when its options (e.g. selected holidays) change."""
-    await hass.config_entries.async_reload(entry.entry_id)
-
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: CalendarificConfigEntry) -> bool:
     """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id, None)
-    return unload_ok
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

@@ -1,218 +1,143 @@
-""" Calendarific Sensor """
-from datetime import datetime
-import logging
+"""Calendarific sensors."""
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_ATTRIBUTION, CONF_NAME
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any
+
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import Entity, DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.util import dt as dt_util
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import slugify
-from .device import get_device_info
 
+from .api import Holiday
 from .const import (
-    ATTRIBUTION,
-    CONF_ICON_NORMAL,
-    CONF_ICON_TODAY,
-    CONF_ICON_SOON,
+    ATTR_DATE,
+    ATTR_DAYS,
+    ATTR_DESCRIPTION,
     CONF_DATE_FORMAT,
+    CONF_DEFAULTS,
+    CONF_HOLIDAYS,
+    CONF_ICON_NORMAL,
+    CONF_ICON_SOON,
+    CONF_ICON_TODAY,
     CONF_SOON,
     CONF_UNIT_OF_MEASUREMENT,
-    CONF_HOLIDAYS,
-    CONF_DEFAULTS,
-    DEFAULT_SOON,
-    DEFAULT_ICON_SOON,
-    DEFAULT_ICON_NORMAL,
-    DEFAULT_ICON_TODAY,
     DEFAULT_DATE_FORMAT,
+    DEFAULT_ICON_NORMAL,
+    DEFAULT_ICON_SOON,
+    DEFAULT_ICON_TODAY,
+    DEFAULT_SOON,
     DEFAULT_UNIT_OF_MEASUREMENT,
-    DOMAIN,
-    SENSOR_PLATFORM,
 )
+from .coordinator import CalendarificConfigEntry, CalendarificCoordinator
+from .entity import CalendarificEntity
 
-_LOGGER = logging.getLogger(__name__)
-
-ATTR_DESCRIPTION = "description"
-ATTR_DATE = "date"
-ATTR_DAYS = "days"
+# Entities read from the coordinator and never talk to the API themselves.
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: CalendarificConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up one sensor per holiday selected for this instance, plus one next-holiday sensor."""
-    reader = hass.data[DOMAIN][entry.entry_id]["apiReader"]
+    """Set up one sensor per holiday selected for this instance, plus a next-holiday sensor."""
+    coordinator = entry.runtime_data
     defaults = entry.options.get(CONF_DEFAULTS, {})
     holidays = entry.options.get(CONF_HOLIDAYS, {})
-    async_add_entities(
-        [
-            # Sparse per-holiday overrides win; anything unset falls back to
-            # the instance's defaults.
-            calendarific(entry, holiday_name, {**defaults, **override}, reader)
-            for holiday_name, override in holidays.items()
-        ]
-        + [CalendarificNextHoliday(entry, reader)],
-        True,
-    )
+    entities: list[SensorEntity] = [
+        # Sparse per-holiday overrides win; anything unset falls back to the
+        # instance's defaults.
+        HolidaySensor(coordinator, holiday_name, {**defaults, **override})
+        for holiday_name, override in holidays.items()
+    ]
+    entities.append(NextHolidaySensor(coordinator))
+    async_add_entities(entities)
 
 
-class calendarific(Entity):
-    def __init__(self, entry: ConfigEntry, holiday_name: str, config: dict, reader):
-        """Initialize the sensor."""
-        self._entry = entry
+class HolidaySensor(CalendarificEntity, SensorEntity):
+    """Counts down the days to one tracked holiday."""
+
+    def __init__(
+        self,
+        coordinator: CalendarificCoordinator,
+        holiday_name: str,
+        config: Mapping[str, Any],
+    ) -> None:
+        """Initialize the sensor from the holiday's resolved settings."""
+        super().__init__(coordinator)
         self._holiday = holiday_name
-        self._name = config.get(CONF_NAME) or holiday_name
-        self._icon_normal = config.get(CONF_ICON_NORMAL, DEFAULT_ICON_NORMAL)
-        self._icon_today = config.get(CONF_ICON_TODAY, DEFAULT_ICON_TODAY)
-        self._icon_soon = config.get(CONF_ICON_SOON, DEFAULT_ICON_SOON)
-        self._soon = config.get(CONF_SOON, DEFAULT_SOON)
-        self._date_format = config.get(CONF_DATE_FORMAT, DEFAULT_DATE_FORMAT)
-        self._unit_of_measurement = config.get(CONF_UNIT_OF_MEASUREMENT, DEFAULT_UNIT_OF_MEASUREMENT)
-        self._icon = self._icon_normal
+        self._icon_normal: str = config.get(CONF_ICON_NORMAL, DEFAULT_ICON_NORMAL)
+        self._icon_today: str = config.get(CONF_ICON_TODAY, DEFAULT_ICON_TODAY)
+        self._icon_soon: str = config.get(CONF_ICON_SOON, DEFAULT_ICON_SOON)
+        self._soon: int = config.get(CONF_SOON, DEFAULT_SOON)
+        self._date_format: str = config.get(CONF_DATE_FORMAT, DEFAULT_DATE_FORMAT)
+        self._attr_name = config.get(CONF_NAME) or holiday_name
+        self._attr_native_unit_of_measurement = config.get(
+            CONF_UNIT_OF_MEASUREMENT, DEFAULT_UNIT_OF_MEASUREMENT
+        )
         # Scoped to this entry so the same holiday name in two different
         # instances (e.g. two countries) never collides.
-        self._unique_id = f"{entry.entry_id}_{slugify(self._holiday)}"
-        self._reader = reader
-        self._description = self._reader.get_description(self._holiday)
-        self._date = self._reader.get_date(self._holiday, dt_util.now().date())
-        if self._date == "-":
-            self._attr_date = self._date
-        else:
-            self._attr_date = datetime.strftime(self._date,self._date_format)
-        self._state = "unknown"
+        self._attr_unique_id = (
+            f"{coordinator.config_entry.entry_id}_{slugify(holiday_name)}"
+        )
+
+    def _next(self) -> Holiday | None:
+        return self.coordinator.data.next_occurrence(self._holiday, self._today())
 
     @property
-    def unique_id(self):
-        """Return a unique ID to use for this sensor."""
-        return self._unique_id
+    def native_value(self) -> int | None:
+        """Return the number of days until the holiday, or None if it is not known."""
+        holiday = self._next()
+        return None if holiday is None else (holiday.day - self._today()).days
 
     @property
-    def name(self):
-        """Return the name of the sensor."""
-        return self._name
+    def icon(self) -> str:
+        """Return the icon for today, soon or normal."""
+        days = self.native_value
+        if days is None:
+            return self._icon_normal
+        if days == 0:
+            return self._icon_today
+        if days <= self._soon:
+            return self._icon_soon
+        return self._icon_normal
 
     @property
-    def state(self):
-        """Return the state of the sensor."""
-        return self._state
-
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes."""
+    def extra_state_attributes(self) -> dict[str, str | None]:
+        """Return the holiday's next date and description."""
+        holiday = self._next()
+        if holiday is None:
+            return {ATTR_DATE: None, ATTR_DESCRIPTION: None}
         return {
-            ATTR_DATE: self._attr_date,
-            ATTR_DESCRIPTION: self._description,
-            ATTR_ATTRIBUTION: ATTRIBUTION,
+            ATTR_DATE: holiday.day.strftime(self._date_format),
+            ATTR_DESCRIPTION: holiday.description,
         }
 
-    @property
-    def unit_of_measurement(self):
-        """Return the unit this state is expressed in."""
-        return self._unit_of_measurement
+
+class NextHolidaySensor(CalendarificEntity, SensorEntity):
+    """Reports whichever tracked holiday is coming up soonest."""
+
+    _attr_name = "Next Holiday"
+
+    def __init__(self, coordinator: CalendarificCoordinator) -> None:
+        """Initialize the sensor; there is one per instance."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_next_holiday"
+
+    def _next(self) -> Holiday | None:
+        return self.coordinator.data.next_holiday(self._tracked_holidays, self._today())
 
     @property
-    def icon(self):
-        return self._icon
+    def native_value(self) -> str | None:
+        """Return the name of the soonest tracked holiday (its custom name, if any)."""
+        holiday = self._next()
+        return None if holiday is None else self._display_name(holiday.name)
 
     @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information to group all of this instance's entities together."""
-        return get_device_info(self._entry)
-
-    async def async_added_to_hass(self):
-        """Once the entity is added we should update to get the initial data loaded."""
-        await super().async_added_to_hass()
-        self.async_schedule_update_ha_state(True)
-        self.hass.data[DOMAIN][self._entry.entry_id][SENSOR_PLATFORM][self.entity_id] = self
-
-    async def async_will_remove_from_hass(self):
-        """Deregister from the instance's sensor list when removed."""
-        await super().async_will_remove_from_hass()
-        _LOGGER.debug("Removing: %s" % (self._name))
-        del self.hass.data[DOMAIN][self._entry.entry_id][SENSOR_PLATFORM][self.entity_id]
-
-    async def async_update(self):
-        # Use HA's configured local date, not the system clock's - the host
-        # (e.g. a container) is frequently set to UTC regardless of the time
-        # zone configured in Home Assistant, which would otherwise roll the
-        # day over at the wrong wall-clock time.
-        today = dt_util.now().date()
-        await self.hass.async_add_executor_job(self._reader.update, today)
-        self._description = self._reader.get_description(self._holiday)
-        self._date = self._reader.get_date(self._holiday, today)
-        if self._date == "-":
-            self._state = "unknown"
-            self._attr_date = self._date
-            return
-        self._attr_date = datetime.strftime(self._date,self._date_format)
-        daysRemaining = 0
-        if today < self._date:
-            daysRemaining = (self._date - today).days
-        elif today == self._date:
-            daysRemaining = 0
-
-        if daysRemaining == 0:
-            self._icon = self._icon_today
-        elif daysRemaining <= self._soon:
-            self._icon = self._icon_soon
-        else:
-            self._icon = self._icon_normal
-        self._state = daysRemaining
-
-
-class CalendarificNextHoliday(Entity):
-    """Reports whichever of this instance's tracked holidays is coming up soonest."""
-
-    def __init__(self, entry: ConfigEntry, reader):
-        """Initialize the sensor."""
-        self._entry = entry
-        self._reader = reader
-        # One per instance, so it doesn't collide with another instance's.
-        self._unique_id = f"{entry.entry_id}_next_holiday"
-        self._name = "Next Holiday"
-        self._state = "unknown"
-        self._days = None
-
-    @property
-    def unique_id(self):
-        """Return a unique ID to use for this sensor."""
-        return self._unique_id
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return self._name
-
-    @property
-    def state(self):
-        """Return the name of the soonest upcoming tracked holiday."""
-        return self._state
-
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes."""
-        return {
-            ATTR_DAYS: self._days,
-            ATTR_ATTRIBUTION: ATTRIBUTION,
-        }
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information to group all of this instance's entities together."""
-        return get_device_info(self._entry)
-
-    async def async_update(self):
-        # Use HA's configured local date, not the system clock's - see the
-        # matching comment on calendarific.async_update above.
-        today = dt_util.now().date()
-        await self.hass.async_add_executor_job(self._reader.update, today)
-        holidays = self._entry.options.get(CONF_HOLIDAYS, {})
-        name, holiday_date = self._reader.get_next_holiday(holidays.keys(), today)
-        if name is None:
-            self._state = "unknown"
-            self._days = None
-            return
-        # Respect a per-holiday custom name, matching that holiday's own sensor.
-        self._state = holidays[name].get(CONF_NAME) or name
-        self._days = (holiday_date - today).days
+    def extra_state_attributes(self) -> dict[str, int | None]:
+        """Return the days remaining until that holiday."""
+        holiday = self._next()
+        return {ATTR_DAYS: None if holiday is None else (holiday.day - self._today()).days}

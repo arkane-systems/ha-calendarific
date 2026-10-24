@@ -10,6 +10,8 @@ DEVICE_MANUFACTURER = "Calendarific"
 DEVICE_MODEL = "Holiday Calendar"
 
 ATTR_DATE = "date"
+ATTR_DAYS = "days"
+ATTR_DESCRIPTION = "description"
 
 # Configuration
 CONF_ENABLED = "enabled"
@@ -32,5 +34,3 @@ DEFAULT_ICON_SOON = "mdi:calendar"
 DEFAULT_DATE_FORMAT = "%Y-%m-%d"
 DEFAULT_SOON = 3
 DEFAULT_UNIT_OF_MEASUREMENT = "days"
-
-SENSOR_PLATFORM = "sensor"
