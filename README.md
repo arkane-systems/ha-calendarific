@@ -11,7 +11,7 @@ This is a post-abandonment reboot of the Calendarific integration, originally cr
 
 > **Upgrading from a pre-0.15 release?** 0.15 is a breaking rearchitecture (per-instance config entries, multi-holiday setup) and there's no migration path from the old one-entry-per-holiday config entries. After upgrading, remove your existing Calendarific integration entries under Settings → Devices & Services and set them up again from scratch.
 
-> **Upgrading from 0.16?** Your instances migrate automatically. Home Assistant 2025.8 or newer is now required. Holiday sensors always use days as their unit (the *unit of measurement* setting is gone), a Next Holiday sensor is now named after its instance (for example "Home Next holiday"), and Home Assistant now removes the sensor of any holiday you stop tracking.
+> **Upgrading from 0.16 to 1.0?** Your instances migrate automatically. Home Assistant 2025.8 or newer is now required. Holiday sensors always use days as their unit (the *unit of measurement* setting is gone), a Next Holiday sensor is now named after its instance (for example "Home Next holiday"), and Home Assistant now removes the sensor of any holiday you stop tracking.
 
 ---
 
@@ -235,4 +235,4 @@ logger:
 
 ## Translations
 
-`strings.json` is the source of truth for the config/options flow text, and `translations/en.json` (English) is generated from it. The other language files under `custom_components/calendarific/translations/` are community-contributed and may lag behind or contain imperfect phrasing - corrections, updates, and additional languages are all welcome as pull requests.
+`strings.json` is the source of truth for the config/options flow text, and `translations/en.json` (English) is generated from it. The other language files under `custom_components/calendarific/translations/` (currently Croatian, Norwegian Bokmål and Dutch) were translated from the English text and have not all been reviewed by native speakers, so they may contain imperfect phrasing - corrections and additional languages are very welcome as pull requests. A language file must contain every string in `en.json` with the same `{placeholders}`; the test suite checks this, so use `en.json` as the template.

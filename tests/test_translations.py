@@ -43,6 +43,56 @@ def test_en_json_is_strings_json_with_common_keys_resolved() -> None:
     assert EN == _resolve(STRINGS, _load(CORE_STRINGS))
 
 
+def _flatten(data: dict[str, Any], prefix: str = "") -> dict[str, str]:
+    flat: dict[str, str] = {}
+    for key, value in data.items():
+        if isinstance(value, dict):
+            flat.update(_flatten(value, f"{prefix}{key}."))
+        else:
+            flat[f"{prefix}{key}"] = value
+    return flat
+
+
+LANGUAGE_FILES = sorted((INTEGRATION / "translations").glob("*.json"))
+OTHER_LANGUAGES = [path for path in LANGUAGE_FILES if path.stem != "en"]
+EN_FLAT = _flatten(EN)
+
+
+def _placeholders(text: str) -> set[str]:
+    return set(re.findall(r"\{(\w+)\}", text))
+
+
+@pytest.mark.parametrize("path", OTHER_LANGUAGES, ids=[p.stem for p in OTHER_LANGUAGES])
+class TestTranslationFiles:
+    """Each language file must mirror English: nothing obsolete, nothing missing."""
+
+    def test_has_no_obsolete_keys(self, path: Path) -> None:
+        assert sorted(set(_flatten(_load(path))) - set(EN_FLAT)) == []
+
+    def test_has_every_string(self, path: Path) -> None:
+        assert sorted(set(EN_FLAT) - set(_flatten(_load(path)))) == []
+
+    def test_keeps_the_same_placeholders(self, path: Path) -> None:
+        for key, text in _flatten(_load(path)).items():
+            assert _placeholders(text) == _placeholders(EN_FLAT[key]), key
+
+    def test_is_valid_message_format(self, path: Path) -> None:
+        """An apostrophe next to a brace starts ICU quoting and swallows the placeholder."""
+        for key, text in _flatten(_load(path)).items():
+            assert "{{" not in text and "}}" not in text, key
+            assert not re.search(r"'\{|\}'", text), key
+
+    def test_description_quotes_the_reset_checkbox_label(self, path: Path) -> None:
+        flat = _flatten(_load(path))
+        label = flat["options.step.customize_values.data.reset_to_default"]
+        assert f"'{label}'" in flat["options.step.customize_values.description"]
+
+
+def test_english_description_quotes_the_reset_checkbox_label() -> None:
+    label = EN_FLAT["options.step.customize_values.data.reset_to_default"]
+    assert f"'{label}'" in EN_FLAT["options.step.customize_values.description"]
+
+
 def _steps() -> list[tuple[str, dict[str, Any]]]:
     return [
         (f"{section}.{name}", step)
