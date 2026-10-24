@@ -29,7 +29,7 @@ def holiday(name, year, month, day, description="A description."):
 def test_holidays_injects_api_key_when_missing(monkeypatch):
     captured = {}
 
-    def fake_get(url, params):
+    def fake_get(url, params, timeout):
         captured.update(params)
         return FakeResponse(200, {"response": {"holidays": []}})
 
@@ -41,7 +41,7 @@ def test_holidays_injects_api_key_when_missing(monkeypatch):
 def test_holidays_preserves_explicit_api_key(monkeypatch):
     captured = {}
 
-    def fake_get(url, params):
+    def fake_get(url, params, timeout):
         captured.update(params)
         return FakeResponse(200, {"response": {"holidays": []}})
 
@@ -50,9 +50,21 @@ def test_holidays_preserves_explicit_api_key(monkeypatch):
     assert captured["api_key"] == "explicit-key"
 
 
+def test_holidays_passes_a_timeout_to_requests(monkeypatch):
+    captured = {}
+
+    def fake_get(url, params, timeout):
+        captured["timeout"] = timeout
+        return FakeResponse(200, {"response": {"holidays": []}})
+
+    monkeypatch.setattr(api.requests, "get", fake_get)
+    api.calendarificAPI("key").holidays({"country": "US"})
+    assert captured["timeout"] is not None
+
+
 def test_holidays_synthesizes_error_on_non_200_without_error_field(monkeypatch):
     monkeypatch.setattr(
-        api.requests, "get", lambda url, params: FakeResponse(500, {"meta": {"code": 500}})
+        api.requests, "get", lambda url, params, timeout: FakeResponse(500, {"meta": {"code": 500}})
     )
     result = api.calendarificAPI("key").holidays({"country": "US"})
     assert result["error"] == "Unknown error."
@@ -62,7 +74,7 @@ def test_holidays_preserves_existing_error_field(monkeypatch):
     monkeypatch.setattr(
         api.requests,
         "get",
-        lambda url, params: FakeResponse(401, {"error": "Invalid API key.", "meta": {"code": 401}}),
+        lambda url, params, timeout: FakeResponse(401, {"error": "Invalid API key.", "meta": {"code": 401}}),
     )
     result = api.calendarificAPI("bad-key").holidays({"country": "US"})
     assert result["error"] == "Invalid API key."
