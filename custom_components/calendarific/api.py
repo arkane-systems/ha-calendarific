@@ -20,7 +20,7 @@ class calendarificAPI:
         if 'api_key' not in parameters:
             parameters['api_key'] = self.api_key
 
-        response = requests.get(url, params=parameters);
+        response = requests.get(url, params=parameters, timeout=15)
         data     = json.loads(response.text)
 
         if response.status_code != 200:
@@ -67,13 +67,13 @@ class CalendarificApiReader:
                 holiday_datetime = next(i for i in self._next_holidays if i['name'] == holiday_name)['date']['datetime']
                 testdate = date(holiday_datetime['year'],holiday_datetime['month'],holiday_datetime['day'])
             return testdate
-        except:
+        except Exception:
             return "-"
 
     def get_description(self,holiday_name):
         try:
             return next(i for i in self._holidays if i['name'] == holiday_name)['description']
-        except:
+        except Exception:
             return "NOT FOUND"
 
     def get_next_holiday(self, holiday_names, today=None):
