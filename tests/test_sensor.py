@@ -21,7 +21,8 @@ async def test_state_is_days_remaining_with_attributes(hass: HomeAssistant) -> N
     assert state.attributes["date"] == "2026-12-25"
     assert state.attributes["description"] == "Description of Christmas Day."
     assert state.attributes["attribution"] == "Data provided by calendarific.com"
-    assert state.attributes["unit_of_measurement"] == "days"
+    assert state.attributes["unit_of_measurement"] == "d"
+    assert state.attributes["device_class"] == "duration"
     assert state.attributes["icon"] == "mdi:calendar-blank"
 
 
@@ -75,7 +76,6 @@ async def test_instance_defaults_apply_and_overrides_win(hass: HomeAssistant) ->
         "icon_soon": "mdi:star-half",
         "days_as_soon": 3,
         "date_format": "%d/%m/%Y",
-        "unit_of_measurement": "d",
     }
     entry = await setup_entry(
         hass,
@@ -87,7 +87,6 @@ async def test_instance_defaults_apply_and_overrides_win(hass: HomeAssistant) ->
     halloween = get_state(hass, sensor_id(hass, entry, "Halloween"))
     assert halloween.attributes["icon"] == "mdi:star"
     assert halloween.attributes["date"] == "31/10/2026"
-    assert halloween.attributes["unit_of_measurement"] == "d"
 
     christmas = get_state(hass, sensor_id(hass, entry, "Christmas Day"))
     assert christmas.attributes["icon"] == "mdi:tree"
@@ -125,3 +124,30 @@ async def test_next_holiday_unknown_without_matches(hass: HomeAssistant) -> None
 
     assert state.state == "unknown"
     assert state.attributes["days"] is None
+
+
+async def test_holiday_sensors_are_named_after_the_holiday_alone(hass: HomeAssistant) -> None:
+    entry = await setup_entry(hass, make_entry(title="Home"))
+    state = get_state(hass, sensor_id(hass, entry, "Christmas Day"))
+
+    assert state.attributes["friendly_name"] == "Christmas Day"
+
+
+async def test_next_holiday_is_prefixed_with_its_instance(hass: HomeAssistant) -> None:
+    """Several instances' Next Holiday sensors can be told apart by name."""
+    us = await setup_entry(hass, make_entry(title="US", country="US"))
+    gb = await setup_entry(hass, make_entry(title="GB", country="GB"))
+
+    assert get_state(hass, entity_id_for(hass, "sensor", us, "next_holiday")).attributes[
+        "friendly_name"
+    ] == "US Next holiday"
+    assert get_state(hass, entity_id_for(hass, "sensor", gb, "next_holiday")).attributes[
+        "friendly_name"
+    ] == "GB Next holiday"
+
+
+async def test_calendar_takes_the_instance_name(hass: HomeAssistant) -> None:
+    entry = await setup_entry(hass, make_entry(title="Home"))
+
+    state = get_state(hass, entity_id_for(hass, "calendar", entry, "calendar"))
+    assert state.attributes["friendly_name"] == "Home"

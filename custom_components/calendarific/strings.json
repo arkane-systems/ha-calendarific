@@ -38,16 +38,14 @@
                     "icon_today": "Icon when a holiday is today",
                     "days_as_soon": "Number of days to consider a holiday 'soon'",
                     "icon_soon": "Icon when a holiday is soon",
-                    "date_format": "Date format (Python strftime syntax)",
-                    "unit_of_measurement": "Text for unit_of_measurement"
+                    "date_format": "Date format (Python strftime syntax)"
                 },
                 "data_description": {
                     "icon_normal": "Icon shown while the holiday is further away than the 'soon' threshold, for example mdi:calendar-blank.",
                     "icon_today": "Icon shown on the day of the holiday.",
                     "days_as_soon": "A holiday this many days away or fewer counts as 'soon'.",
                     "icon_soon": "Icon shown while the holiday is 'soon'.",
-                    "date_format": "How the date attribute is written, using Python strftime codes such as %Y-%m-%d (see strftime.org).",
-                    "unit_of_measurement": "Text shown after the number of days."
+                    "date_format": "How the date attribute is written, using Python strftime codes such as %Y-%m-%d (see strftime.org)."
                 }
             },
             "holidays": {
@@ -133,16 +131,14 @@
                     "icon_today": "Icon when a holiday is today",
                     "days_as_soon": "Number of days to consider a holiday 'soon'",
                     "icon_soon": "Icon when a holiday is soon",
-                    "date_format": "Date format (Python strftime syntax)",
-                    "unit_of_measurement": "Text for unit_of_measurement"
+                    "date_format": "Date format (Python strftime syntax)"
                 },
                 "data_description": {
                     "icon_normal": "Icon shown while the holiday is further away than the 'soon' threshold, for example mdi:calendar-blank.",
                     "icon_today": "Icon shown on the day of the holiday.",
                     "days_as_soon": "A holiday this many days away or fewer counts as 'soon'.",
                     "icon_soon": "Icon shown while the holiday is 'soon'.",
-                    "date_format": "How the date attribute is written, using Python strftime codes such as %Y-%m-%d (see strftime.org).",
-                    "unit_of_measurement": "Text shown after the number of days."
+                    "date_format": "How the date attribute is written, using Python strftime codes such as %Y-%m-%d (see strftime.org)."
                 }
             },
             "customize": {
@@ -164,7 +160,6 @@
                     "days_as_soon": "Number of days to consider this holiday 'soon'",
                     "icon_soon": "Icon when this holiday is soon",
                     "date_format": "Date format (Python strftime syntax)",
-                    "unit_of_measurement": "Text for unit_of_measurement",
                     "reset_to_default": "Reset to instance default"
                 },
                 "data_description": {
@@ -174,7 +169,6 @@
                     "days_as_soon": "A holiday this many days away or fewer counts as 'soon'.",
                     "icon_soon": "Icon shown while the holiday is 'soon'.",
                     "date_format": "How the date attribute is written, using Python strftime codes such as %Y-%m-%d (see strftime.org).",
-                    "unit_of_measurement": "Text shown after the number of days.",
                     "reset_to_default": "Discard this holiday's customizations and use the instance defaults. The other fields are ignored when this is checked."
                 }
             }
@@ -189,6 +183,31 @@
         },
         "update_failed": {
             "message": "Error fetching holidays from Calendarific: {detail}"
+        }
+    },
+    "entity": {
+        "sensor": {
+            "next_holiday": {
+                "name": "Next holiday"
+            }
+        },
+        "calendar": {
+            "holidays": {
+                "name": "Holidays"
+            }
+        }
+    },
+    "issues": {
+        "holiday_missing": {
+            "title": "{holiday} is no longer listed in {title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Stop tracking {holiday}?",
+                        "description": "Calendarific no longer lists a holiday called {holiday} for this instance's country and state, so its sensor can't show a date. Confirm to remove it from the instance. If the holiday was renamed, add the new name from the instance's options afterwards."
+                    }
+                }
+            }
         }
     }
 }

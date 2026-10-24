@@ -133,7 +133,7 @@ async def test_migration_gives_existing_entries_a_unique_id(
 
     assert entry.state is ConfigEntryState.LOADED
     assert entry.unique_id == "us-ks"
-    assert entry.minor_version == 2
+    assert entry.minor_version == 3
 
 
 async def test_migration_leaves_a_duplicate_instance_without_an_id_but_working(
@@ -150,7 +150,7 @@ async def test_migration_leaves_a_duplicate_instance_without_an_id_but_working(
 
     assert first.unique_id == "us-ks"
     assert second.unique_id is None
-    assert second.minor_version == 2
+    assert second.minor_version == 3
     assert second.state is ConfigEntryState.LOADED
     assert "duplicates another instance" in caplog.text
 
@@ -196,4 +196,125 @@ async def test_entry_from_a_newer_minor_version_still_loads(
         minor_version=3,
     )
     await setup_entry(hass, entry)
+    assert entry.minor_version == 3
+
+
+# -- stale entities ---------------------------------------------------------------
+
+
+async def test_deselecting_a_holiday_removes_its_entity(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    entry = await setup_entry(hass, make_entry())
+    registry = er.async_get(hass)
+    christmas = entity_id_for(hass, "sensor", entry, "christmas_day")
+    halloween = entity_id_for(hass, "sensor", entry, "halloween")
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "holidays"}
+    )
+    await hass.config_entries.options.async_configure(
+        result["flow_id"], {"holidays": ["Halloween"]}
+    )
+    await hass.async_block_till_done()
+
+    assert registry.async_get(christmas) is None
+    assert hass.states.get(christmas) is None
+    assert registry.async_get(halloween) is not None
+    assert len(er.async_entries_for_config_entry(registry, entry.entry_id)) == 3
+
+
+async def test_stale_cleanup_leaves_other_instances_alone(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    mine = await setup_entry(hass, make_entry(title="US", country="US", holidays={"Halloween": {}}))
+    theirs = await setup_entry(hass, make_entry(title="GB", country="GB"))
+    registry = er.async_get(hass)
+    before = len(er.async_entries_for_config_entry(registry, theirs.entry_id))
+
+    hass.config_entries.async_update_entry(
+        mine, options={**mine.options, "holidays": {}}
+    )
+    await hass.config_entries.async_reload(mine.entry_id)
+    await hass.async_block_till_done()
+
+    assert len(er.async_entries_for_config_entry(registry, theirs.entry_id)) == before
+    assert len(er.async_entries_for_config_entry(registry, mine.entry_id)) == 2  # next + calendar
+
+
+async def test_renaming_a_holiday_sensor_does_not_make_it_stale(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    entry = await setup_entry(hass, make_entry(holidays={"Halloween": {"name": "Spooky"}}))
+    entity_id = entity_id_for(hass, "sensor", entry, "halloween")
+
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert er.async_get(hass).async_get(entity_id) is not None
+
+
+# -- migration to minor 3 -----------------------------------------------------------
+
+
+async def test_migration_drops_the_unit_setting(hass: HomeAssistant, fake_api: FakeApi) -> None:
+    defaults = {"icon_normal": "mdi:star", "days_as_soon": 3, "unit_of_measurement": "dias"}
+    entry = _old_entry(
+        defaults=defaults,
+        holidays={
+            "Halloween": {"unit_of_measurement": "d", "icon_today": "mdi:pumpkin"},
+            "Christmas Day": {},
+        },
+    )
+    entry.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.minor_version == 3
+    assert entry.options["defaults"] == {"icon_normal": "mdi:star", "days_as_soon": 3}
+    assert entry.options["holidays"] == {
+        "Halloween": {"icon_today": "mdi:pumpkin"},
+        "Christmas Day": {},
+    }
+
+
+async def test_migration_from_minor_two_only_drops_the_unit(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    template = make_entry(defaults={"icon_normal": "mdi:star", "unit_of_measurement": "dias"})
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title=template.title,
+        data=template.data,
+        options=template.options,
+        unique_id="us",
+        minor_version=2,
+    )
+    entry.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.unique_id == "us"
+    assert entry.options["defaults"] == {"icon_normal": "mdi:star"}
+
+
+async def test_migration_copes_with_entries_that_have_no_options(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Bare",
+        data=make_entry().data,
+        unique_id="us",
+        minor_version=2,
+    )
+    entry.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
     assert entry.minor_version == 3

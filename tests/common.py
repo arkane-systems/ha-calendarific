@@ -23,7 +23,6 @@ from custom_components.calendarific.const import (
     CONF_ICON_TODAY,
     CONF_SOON,
     CONF_STATE,
-    CONF_UNIT_OF_MEASUREMENT,
     DOMAIN,
 )
 from custom_components.calendarific.helpers import instance_unique_id
@@ -39,7 +38,6 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     CONF_ICON_SOON: "mdi:calendar",
     CONF_SOON: 3,
     CONF_DATE_FORMAT: "%Y-%m-%d",
-    CONF_UNIT_OF_MEASUREMENT: "days",
 }
 
 def make_holiday(name: str, when: date, description: str | None = None) -> dict[str, Any]:

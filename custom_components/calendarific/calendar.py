@@ -12,6 +12,7 @@ from homeassistant.util import dt as dt_util
 from .api import Holiday
 from .coordinator import CalendarificConfigEntry, CalendarificCoordinator
 from .entity import CalendarificEntity
+from .helpers import calendar_unique_id
 
 # The calendar reads from the coordinator and never talks to the API itself.
 PARALLEL_UPDATES = 0
@@ -29,12 +30,15 @@ async def async_setup_entry(
 class CalendarificCalendar(CalendarificEntity, CalendarEntity):
     """Calendar of the holidays a single Calendarific instance tracks."""
 
+    # The instance's one calendar is its main feature, so it takes the device's name.
+    _attr_has_entity_name = True
+    _attr_name = None
+    _attr_translation_key = "holidays"
+
     def __init__(self, coordinator: CalendarificCoordinator) -> None:
-        """Initialize the calendar, named after its instance."""
+        """Initialize the calendar."""
         super().__init__(coordinator)
-        entry = coordinator.config_entry
-        self._attr_name = entry.title
-        self._attr_unique_id = f"{entry.entry_id}_calendar"
+        self._attr_unique_id = calendar_unique_id(coordinator.config_entry.entry_id)
 
     def _to_event(self, holiday: Holiday) -> CalendarEvent:
         return CalendarEvent(

@@ -20,6 +20,7 @@ from .api import (
     HolidayData,
 )
 from .const import CONF_API_KEY, CONF_COUNTRY, CONF_STATE, DOMAIN
+from .issues import async_sync_missing_holiday_issues
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -87,6 +88,7 @@ class CalendarificCoordinator(DataUpdateCoordinator[HolidayData]):
             self._serving_stale = False
             _LOGGER.info("Calendarific is reachable again; holiday data refreshed")
         self.update_interval = REFRESH_INTERVAL
+        async_sync_missing_holiday_issues(self.hass, self.config_entry, data)
         return data
 
     async def _async_fetch(self, year: int) -> HolidayData:

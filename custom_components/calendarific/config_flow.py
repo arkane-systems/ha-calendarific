@@ -32,13 +32,11 @@ from .const import (
     DEFAULT_ICON_TODAY,
     DEFAULT_DATE_FORMAT,
     DEFAULT_SOON,
-    DEFAULT_UNIT_OF_MEASUREMENT,
     CONF_ICON_NORMAL,
     CONF_ICON_TODAY,
     CONF_ICON_SOON,
     CONF_DATE_FORMAT,
     CONF_SOON,
-    CONF_UNIT_OF_MEASUREMENT,
 )
 from .helpers import default_title, instance_unique_id
 
@@ -73,7 +71,6 @@ def _hardcoded_defaults() -> dict:
         CONF_ICON_SOON: DEFAULT_ICON_SOON,
         CONF_SOON: DEFAULT_SOON,
         CONF_DATE_FORMAT: DEFAULT_DATE_FORMAT,
-        CONF_UNIT_OF_MEASUREMENT: DEFAULT_UNIT_OF_MEASUREMENT,
     }
 
 
@@ -102,10 +99,6 @@ def _holiday_settings_schema(
         vol.Required(CONF_SOON, default=values.get(CONF_SOON, hardcoded[CONF_SOON])): int,
         vol.Required(
             CONF_DATE_FORMAT, default=values.get(CONF_DATE_FORMAT, hardcoded[CONF_DATE_FORMAT])
-        ): cv.string,
-        vol.Required(
-            CONF_UNIT_OF_MEASUREMENT,
-            default=values.get(CONF_UNIT_OF_MEASUREMENT, hardcoded[CONF_UNIT_OF_MEASUREMENT]),
         ): cv.string,
     })
     if include_reset:

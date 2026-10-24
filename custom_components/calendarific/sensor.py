@@ -5,11 +5,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity
-from homeassistant.const import CONF_NAME
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.const import CONF_NAME, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.util import slugify
 
 from .api import Holiday
 from .const import (
@@ -23,16 +22,15 @@ from .const import (
     CONF_ICON_SOON,
     CONF_ICON_TODAY,
     CONF_SOON,
-    CONF_UNIT_OF_MEASUREMENT,
     DEFAULT_DATE_FORMAT,
     DEFAULT_ICON_NORMAL,
     DEFAULT_ICON_SOON,
     DEFAULT_ICON_TODAY,
     DEFAULT_SOON,
-    DEFAULT_UNIT_OF_MEASUREMENT,
 )
 from .coordinator import CalendarificConfigEntry, CalendarificCoordinator
 from .entity import CalendarificEntity
+from .helpers import holiday_unique_id, next_holiday_unique_id
 
 # Entities read from the coordinator and never talk to the API themselves.
 PARALLEL_UPDATES = 0
@@ -60,6 +58,12 @@ async def async_setup_entry(
 class HolidaySensor(CalendarificEntity, SensorEntity):
     """Counts down the days to one tracked holiday."""
 
+    # Named after the holiday itself, not prefixed with the instance (see
+    # has-entity-name in quality_scale.yaml).
+    _attr_has_entity_name = False
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = UnitOfTime.DAYS
+
     def __init__(
         self,
         coordinator: CalendarificCoordinator,
@@ -75,14 +79,7 @@ class HolidaySensor(CalendarificEntity, SensorEntity):
         self._soon: int = config.get(CONF_SOON, DEFAULT_SOON)
         self._date_format: str = config.get(CONF_DATE_FORMAT, DEFAULT_DATE_FORMAT)
         self._attr_name = config.get(CONF_NAME) or holiday_name
-        self._attr_native_unit_of_measurement = config.get(
-            CONF_UNIT_OF_MEASUREMENT, DEFAULT_UNIT_OF_MEASUREMENT
-        )
-        # Scoped to this entry so the same holiday name in two different
-        # instances (e.g. two countries) never collides.
-        self._attr_unique_id = (
-            f"{coordinator.config_entry.entry_id}_{slugify(holiday_name)}"
-        )
+        self._attr_unique_id = holiday_unique_id(coordinator.config_entry.entry_id, holiday_name)
 
     def _next(self) -> Holiday | None:
         return self.coordinator.data.next_occurrence(self._holiday, self._today())
@@ -120,12 +117,14 @@ class HolidaySensor(CalendarificEntity, SensorEntity):
 class NextHolidaySensor(CalendarificEntity, SensorEntity):
     """Reports whichever tracked holiday is coming up soonest."""
 
-    _attr_name = "Next Holiday"
+    # Prefixed with the instance's name, which tells several instances' sensors apart.
+    _attr_has_entity_name = True
+    _attr_translation_key = "next_holiday"
 
     def __init__(self, coordinator: CalendarificCoordinator) -> None:
         """Initialize the sensor; there is one per instance."""
         super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_next_holiday"
+        self._attr_unique_id = next_holiday_unique_id(coordinator.config_entry.entry_id)
 
     def _next(self) -> Holiday | None:
         return self.coordinator.data.next_holiday(self._tracked_holidays, self._today())

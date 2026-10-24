@@ -18,7 +18,7 @@ The _Calendarific_ component is a Home Assistant custom integration which counts
 Each **instance** you configure tracks one country/state combination (e.g. "US - KS" or "GB") and can track any number of holidays within it. All of an instance's holiday sensors are grouped under a single device, and the instance gets its own calendar entity listing its selected holidays. It also gets a **Next Holiday** sensor reporting whichever of its tracked holidays is coming up soonest. You can configure any number of instances side by side - for example one for US/US-KS and another for GB - each with its own device, calendar, and next-holiday sensor.
 
 State Returned (per holiday sensor):
-* The number of days remaining to the next occurrence.
+* The number of days remaining to the next occurrence. The unit is always days (the sensor has the Home Assistant *duration* device class), so Home Assistant can display it in your language or convert it to another time unit from the entity's settings.
 
 Attributes (both are provided by the Calendarific API):
 * **date:**  The next date of the holiday (formatted by date_format configuration option if set)
@@ -37,6 +37,7 @@ Attributes:
   + [Manual Installation](#manual-installation)
 * [Setting up an instance](#setting-up-an-instance)
 * [Managing holidays](#managing-holidays)
+* [Holidays Calendarific stops listing](#holidays-calendarific-stops-listing)
 * [Changing an instance's account or location](#changing-an-instances-account-or-location)
 * [Sensor Settings Reference](#sensor-settings-reference)
 * [Translations](#translations)
@@ -71,7 +72,7 @@ In Settings/Devices & Services click **+ Add Integration**, select **Calendarifi
 1. Enter a friendly name for the instance (optional - one is generated from the country/state if left blank), your API key, country code, and state/subdivision code.
    * Country codes: [list of supported countries](https://calendarific.com/supported-countries).
    * State codes are ISO 3166-2 subdivision codes ([USA](https://en.wikipedia.org/wiki/ISO_3166-2:US), [UK](https://en.wikipedia.org/wiki/ISO_3166-2:GB); UK counties are not supported). Leave blank to see only national holidays.
-2. Set the instance's default sensor settings (icons, "soon" threshold, date format, unit of measurement) - these apply to every holiday in the instance unless you override them for a specific one later.
+2. Set the instance's default sensor settings (icons, "soon" threshold, date format) - these apply to every holiday in the instance unless you override them for a specific one later.
 3. Choose which of the available holidays to create sensors for, from the list fetched live from Calendarific for that country/state.
 
 This creates one device (grouping every holiday sensor for that instance) and one calendar entity listing them.
@@ -88,6 +89,12 @@ Find the instance on the Integrations page and click **Configure** to:
 
   A custom friendly name only changes the entity's *display* name - it won't rename its `entity_id`, since Home Assistant assigns that once from the name at entity creation and never renames it automatically afterward. To also change the `entity_id`, use that entity's own settings dialog (Settings → Devices & Services → Entities).
 
+## Holidays Calendarific stops listing
+
+Home Assistant keeps a tracked holiday's sensor up to date only while Calendarific lists a holiday by that name for your country and state. If it disappears (for example because it was renamed), the sensor shows *unknown* and a repair appears under Settings → System → Repairs offering to stop tracking it. Confirming removes the holiday from the instance; if it was renamed, add the new name from **Configure** afterwards.
+
+Stopping tracking a holiday, by either route, also removes its sensor entity.
+
 ## Changing an instance's account or location
 
 Find the instance on the Integrations page, open its three-dot menu and choose **Reconfigure** to change its API key, country or state.
@@ -100,7 +107,7 @@ If Calendarific rejects your API key (for example because it was revoked or your
 
 ## Sensor Settings Reference
 
-Each holiday sensor's icons, "soon" threshold, date format, and unit of measurement are resolved from three layers, each falling back to the one below it if unset:
+Each holiday sensor's icons, "soon" threshold and date format are resolved from three layers, each falling back to the one below it if unset:
 
 1. **Per-holiday override** - set via Configure → Customize a specific holiday. Only stored for settings that differ from the instance default.
 2. **Instance default** - set at instance setup, editable via Configure → Edit instance defaults. Applies to every holiday in the instance unless overridden.
@@ -115,8 +122,7 @@ See [Managing holidays](#managing-holidays) for how to edit instance defaults an
 | Number of days to consider a holiday "soon" | 3
 | Icon when a holiday is soon | `mdi:calendar`
 | Date format (Python strftime syntax) | `%Y-%m-%d` (_see [http://strftime.org/](http://strftime.org/))_
-| Text for unit_of_measurement | `days`
 
 ## Translations
 
-`en.json` (English) is the source of truth for the config/options flow text. The other language files under `custom_components/calendarific/translations/` are community-contributed and may lag behind or contain imperfect phrasing - corrections, updates, and additional languages are all welcome as pull requests.
+`strings.json` is the source of truth for the config/options flow text, and `translations/en.json` (English) is generated from it. The other language files under `custom_components/calendarific/translations/` are community-contributed and may lag behind or contain imperfect phrasing - corrections, updates, and additional languages are all welcome as pull requests.

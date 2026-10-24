@@ -67,6 +67,10 @@ class HolidayData:
         """Whether this data includes the whole of today's year."""
         return today.year in self.by_year
 
+    def knows(self, name: str) -> bool:
+        """Whether any fetched year lists a holiday by this name."""
+        return any(name in named for named in self.by_year.values())
+
     def next_occurrence(self, name: str, today: date) -> Holiday | None:
         """Return the first occurrence of a holiday on or after today, if known."""
         for year in sorted(self.by_year):

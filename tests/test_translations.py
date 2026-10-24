@@ -80,6 +80,18 @@ def test_every_translation_key_the_code_uses_exists() -> None:
     assert set(options["step"]["init"]["menu_options"]) == {"holidays", "defaults", "customize"}
 
 
+def test_every_entity_translation_key_has_a_name_and_an_icon() -> None:
+    used = set(re.findall(r'_attr_translation_key = "(\w+)"', _all_source()))
+    assert used == {"next_holiday", "holidays"}
+
+    icons = _load(INTEGRATION / "icons.json")["entity"]
+    for platform, keys in (("sensor", {"next_holiday"}), ("calendar", {"holidays"})):
+        assert keys <= set(STRINGS["entity"][platform]), platform
+        assert keys <= set(icons[platform]), platform
+        for key in keys:
+            assert icons[platform][key]["default"].startswith("mdi:")
+
+
 def _all_source() -> str:
     return "".join(path.read_text(encoding="utf-8") for path in INTEGRATION.glob("*.py"))
 

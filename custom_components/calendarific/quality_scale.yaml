@@ -41,8 +41,9 @@ rules:
     status: exempt
     comment: >
       Holiday sensors are deliberately named after the holiday itself (for example
-      "Christmas Day"). Prefixing the instance title would yield names such as
-      "Calendarific (US - KS) Christmas Day" and long entity IDs.
+      "Christmas Day"); prefixing the instance title would yield names such as
+      "Calendarific (US - KS) Christmas Day" and long entity IDs. The Next Holiday
+      sensor and the calendar do set has_entity_name.
   runtime-data: done
   test-before-configure: done
   test-before-setup: done
@@ -68,13 +69,11 @@ rules:
   log-when-unavailable: done
   parallel-updates: done
   reauthentication-flow: done
-  test-coverage: todo
+  test-coverage: done
 
   # Gold
-  devices:
-    status: todo
-    comment: The device lacks entry_type and configuration_url.
-  diagnostics: todo
+  devices: done
+  diagnostics: done
   discovery-update-info:
     status: exempt
     comment: The integration is a cloud service and cannot be discovered.
@@ -96,20 +95,38 @@ rules:
   entity-category:
     status: exempt
     comment: The integration has no configuration or diagnostic entities.
-  entity-device-class: todo
+  entity-device-class:
+    status: done
+    comment: >
+      Holiday sensors are DURATION in days. Next Holiday's state is a holiday name,
+      for which no device class fits.
   entity-disabled-by-default:
     status: exempt
     comment: Every entity is part of the integration's purpose.
-  entity-translations: todo
+  entity-translations:
+    status: done
+    comment: >
+      Next Holiday is translated. Holiday sensors are named after data from the API,
+      and entity names only translate when has_entity_name is set.
   exception-translations: done
-  icon-translations: todo
+  icon-translations:
+    status: done
+    comment: >
+      The calendar and Next Holiday use icons.json. Holiday sensors take their icons
+      from the user's settings (normal, soon and today), which is deliberate.
   reconfiguration-flow:
     status: done
     comment: >
       The API key, country and state can be changed. Moving to another place asks
       for the holidays again and keeps customizations of those still on offer.
-  repair-issues: todo
-  stale-devices: todo
+  repair-issues:
+    status: done
+    comment: A repair offers to stop tracking a holiday Calendarific no longer lists.
+  stale-devices:
+    status: done
+    comment: >
+      Each instance has one device, removed with its entry. Entities of holidays that
+      are no longer tracked are removed at setup.
 
   # Platinum
   async-dependency:

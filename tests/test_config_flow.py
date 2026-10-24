@@ -416,7 +416,7 @@ async def test_created_entry_has_a_unique_id_and_current_schema_version(
 
     entry = result["result"]
     assert entry.unique_id == "us-ks"
-    assert (entry.version, entry.minor_version) == (1, 2)
+    assert (entry.version, entry.minor_version) == (1, 3)
 
 
 async def test_user_flow_strips_whitespace(hass: HomeAssistant, fake_api: FakeApi) -> None:
