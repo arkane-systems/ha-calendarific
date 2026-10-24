@@ -89,7 +89,7 @@ async def test_options_flow_reloads_entry(hass: HomeAssistant, fake_api: FakeApi
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {"action": "holidays"}
+        result["flow_id"], {"next_step_id": "holidays"}
     )
     await hass.config_entries.options.async_configure(
         result["flow_id"], {"holidays": ["Halloween", "Christmas Day"]}
@@ -103,3 +103,97 @@ async def test_options_flow_reloads_entry(hass: HomeAssistant, fake_api: FakeApi
 async def test_runtime_data_holds_the_coordinator(hass: HomeAssistant, fake_api: FakeApi) -> None:
     entry = await setup_entry(hass, make_entry())
     assert isinstance(entry.runtime_data, CalendarificCoordinator)
+
+
+# -- config entry migration -----------------------------------------------------
+
+
+def _old_entry(**kwargs: object) -> MockConfigEntry:
+    """An entry as created before unique IDs existed (minor version 1)."""
+    entry = make_entry(**kwargs)  # type: ignore[arg-type]
+    return MockConfigEntry(
+        domain=DOMAIN,
+        title=entry.title,
+        data=entry.data,
+        options=entry.options,
+        version=1,
+        minor_version=1,
+        unique_id=None,
+    )
+
+
+async def test_migration_gives_existing_entries_a_unique_id(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    entry = _old_entry(country="US", state="KS")
+    entry.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.unique_id == "us-ks"
+    assert entry.minor_version == 2
+
+
+async def test_migration_leaves_a_duplicate_instance_without_an_id_but_working(
+    hass: HomeAssistant, fake_api: FakeApi, caplog: pytest.LogCaptureFixture
+) -> None:
+    first = _old_entry(title="First", country="US", state="KS")
+    second = _old_entry(title="Second", country="US", state="KS")
+    first.add_to_hass(hass)
+    second.add_to_hass(hass)
+
+    # Setting up the integration sets up (and migrates) every entry, in order.
+    assert await hass.config_entries.async_setup(first.entry_id)
+    await hass.async_block_till_done()
+
+    assert first.unique_id == "us-ks"
+    assert second.unique_id is None
+    assert second.minor_version == 2
+    assert second.state is ConfigEntryState.LOADED
+    assert "duplicates another instance" in caplog.text
+
+
+async def test_migration_of_a_legacy_entry_still_reports_it_as_incompatible(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    entry = MockConfigEntry(domain=DOMAIN, title="Old", data={"name": "Christmas"})
+    entry.add_to_hass(hass)
+
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    assert entry.unique_id is None
+    assert entry.error_reason_translation_key == "legacy_entry"
+
+
+async def test_entry_from_a_newer_major_version_is_not_loaded(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Future", data=make_entry().data, version=2, minor_version=0
+    )
+    entry.add_to_hass(hass)
+
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.MIGRATION_ERROR
+
+
+async def test_entry_from_a_newer_minor_version_still_loads(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    template = make_entry()
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title=template.title,
+        data=template.data,
+        options=template.options,
+        unique_id=template.unique_id,
+        minor_version=3,
+    )
+    await setup_entry(hass, entry)
+    assert entry.minor_version == 3

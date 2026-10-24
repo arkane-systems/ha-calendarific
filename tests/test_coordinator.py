@@ -56,6 +56,9 @@ async def test_first_refresh_failures(
     await hass.async_block_till_done()
 
     assert entry.state is state
+    if state is ConfigEntryState.SETUP_ERROR:
+        assert entry.error_reason_translation_key == "auth_failed"
+        assert entry.error_reason_translation_placeholders == {"detail": "Invalid API key."}
     reauth_flows = [
         flow
         for flow in hass.config_entries.flow.async_progress_by_handler(DOMAIN)
@@ -221,6 +224,7 @@ async def test_entities_become_unavailable_when_the_cache_no_longer_covers_today
     await hass.async_block_till_done()
 
     assert get_state(hass, halloween).state == "unavailable"
+    assert entry.runtime_data.last_exception.translation_key == "update_failed"
     errors = [
         r for r in caplog.records if r.levelno == logging.ERROR and r.name == COORDINATOR_LOGGER
     ]

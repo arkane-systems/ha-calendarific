@@ -75,7 +75,11 @@ class CalendarificCoordinator(DataUpdateCoordinator[HolidayData]):
         try:
             data = await self._async_fetch(today.year)
         except CalendarificAuthError as err:
-            raise ConfigEntryAuthFailed(str(err)) from err
+            raise ConfigEntryAuthFailed(
+                translation_domain=DOMAIN,
+                translation_key="auth_failed",
+                translation_placeholders={"detail": str(err)},
+            ) from err
         except CalendarificError as err:
             return self._handle_fetch_failure(err, today)
 
@@ -106,4 +110,8 @@ class CalendarificCoordinator(DataUpdateCoordinator[HolidayData]):
                 )
             return self.data
         self._serving_stale = False
-        raise UpdateFailed(f"Error fetching holidays from Calendarific: {err}") from err
+        raise UpdateFailed(
+            translation_domain=DOMAIN,
+            translation_key="update_failed",
+            translation_placeholders={"detail": str(err)},
+        ) from err

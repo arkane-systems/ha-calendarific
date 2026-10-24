@@ -19,6 +19,8 @@ from .api import (
     CalendarificRateLimitError,
 )
 from .const import (
+    CONFIG_ENTRY_MINOR_VERSION,
+    CONFIG_ENTRY_VERSION,
     DOMAIN,
     CONF_API_KEY,
     CONF_COUNTRY,
@@ -38,6 +40,7 @@ from .const import (
     CONF_SOON,
     CONF_UNIT_OF_MEASUREMENT,
 )
+from .helpers import default_title, instance_unique_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -110,36 +113,32 @@ def _holiday_settings_schema(
     return vol.Schema(schema)
 
 
-def _default_title(country: str, state: str) -> str:
-    title = f"Calendarific ({country.upper()}"
-    if state:
-        title += f" - {state.upper()}"
-    title += ")"
-    return title
-
-
 class CalendarificConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     "handle config flow"
-    VERSION = 1
+    VERSION = CONFIG_ENTRY_VERSION
+    MINOR_VERSION = CONFIG_ENTRY_MINOR_VERSION
 
     def __init__(self) -> None:
         self._instance_data = {}
         self._instance_defaults = {}
         self._title = ""
         self._holiday_list = []
+        self._new_instance_data = {}
 
     async def async_step_user(self, user_input=None):
         """First step: collect the api key and country/state for this instance."""
         errors = {}
         if user_input is not None:
-            country = user_input[CONF_COUNTRY]
-            state = user_input.get(CONF_STATE, "")
+            country = user_input[CONF_COUNTRY].strip()
+            state = user_input.get(CONF_STATE, "").strip()
+            await self.async_set_unique_id(instance_unique_id(country, state))
+            self._abort_if_unique_id_configured()
             self._instance_data = {
                 CONF_API_KEY: user_input[CONF_API_KEY],
                 CONF_COUNTRY: country,
                 CONF_STATE: state,
             }
-            self._title = user_input.get(CONF_NAME) or _default_title(country, state)
+            self._title = user_input.get(CONF_NAME) or default_title(country, state)
             try:
                 self._holiday_list = await _async_fetch_holiday_names(
                     self.hass, self._instance_data[CONF_API_KEY], country, state
@@ -222,6 +221,97 @@ class CalendarificConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={"title": entry.title},
         )
 
+    async def async_step_reconfigure(self, user_input=None):
+        """Change the API key, country or state of an existing instance."""
+        errors = {}
+        entry = self._get_reconfigure_entry()
+        if user_input is not None:
+            country = user_input[CONF_COUNTRY].strip()
+            state = user_input.get(CONF_STATE, "").strip()
+            api_key = user_input[CONF_API_KEY]
+            unique_id = instance_unique_id(country, state)
+            if any(
+                other.unique_id == unique_id
+                for other in self._async_current_entries(include_ignore=False)
+                if other.entry_id != entry.entry_id
+            ):
+                errors["base"] = "already_configured"
+            else:
+                try:
+                    self._holiday_list = await _async_fetch_holiday_names(
+                        self.hass, api_key, country, state
+                    )
+                except CalendarificError as err:
+                    errors["base"] = _error_key(err)
+                else:
+                    if not self._holiday_list:
+                        errors["base"] = "no_holidays_found"
+                    elif unique_id == instance_unique_id(
+                        entry.data[CONF_COUNTRY], entry.data[CONF_STATE]
+                    ):
+                        # Same place (perhaps a new key): nothing else to re-pick.
+                        return self.async_update_reload_and_abort(
+                            entry,
+                            data_updates={
+                                CONF_API_KEY: api_key,
+                                CONF_COUNTRY: country,
+                                CONF_STATE: state,
+                            },
+                        )
+                    else:
+                        self._new_instance_data = {
+                            CONF_API_KEY: api_key,
+                            CONF_COUNTRY: country,
+                            CONF_STATE: state,
+                        }
+                        return await self.async_step_reconfigure_holidays()
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_API_KEY, default=entry.data[CONF_API_KEY]): cv.string,
+                vol.Required(CONF_COUNTRY, default=entry.data[CONF_COUNTRY]): cv.string,
+                vol.Optional(CONF_STATE, default=entry.data[CONF_STATE]): cv.string,
+            }
+        )
+        return self.async_show_form(step_id="reconfigure", data_schema=schema, errors=errors)
+
+    async def async_step_reconfigure_holidays(self, user_input=None):
+        """Re-pick the tracked holidays after moving the instance to another place."""
+        errors = {}
+        entry = self._get_reconfigure_entry()
+        current = entry.options.get(CONF_HOLIDAYS, {})
+        if user_input is not None:
+            selected = user_input[CONF_HOLIDAYS]
+            if not selected:
+                errors["base"] = "no_holidays_selected"
+            else:
+                new = self._new_instance_data
+                # Holidays that exist in both places keep their customization.
+                holidays = {name: current.get(name, {}) for name in selected}
+                # Follow the place in the title only if it was never renamed.
+                title = entry.title
+                if title == default_title(entry.data[CONF_COUNTRY], entry.data[CONF_STATE]):
+                    title = default_title(new[CONF_COUNTRY], new[CONF_STATE])
+                return self.async_update_reload_and_abort(
+                    entry,
+                    unique_id=instance_unique_id(new[CONF_COUNTRY], new[CONF_STATE]),
+                    title=title,
+                    data={**entry.data, **new},
+                    options={**entry.options, CONF_HOLIDAYS: holidays},
+                )
+
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_HOLIDAYS,
+                    default=[name for name in current if name in self._holiday_list],
+                ): cv.multi_select(self._holiday_list)
+            }
+        )
+        return self.async_show_form(
+            step_id="reconfigure_holidays", data_schema=schema, errors=errors
+        )
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
@@ -253,26 +343,9 @@ class CalendarificOptionsFlowHandler(config_entries.OptionsFlowWithReload):
 
     async def async_step_init(self, user_input=None):
         """Menu: manage which holidays are tracked, edit instance defaults, or customize one holiday."""
-        if user_input is not None:
-            action = user_input["action"]
-            if action == "holidays":
-                return await self.async_step_holidays()
-            if action == "defaults":
-                return await self.async_step_defaults()
-            return await self.async_step_customize()
-
-        schema = vol.Schema(
-            {
-                vol.Required("action", default="holidays"): vol.In(
-                    {
-                        "holidays": "Add or remove holidays",
-                        "defaults": "Edit instance defaults",
-                        "customize": "Customize a specific holiday",
-                    }
-                )
-            }
+        return self.async_show_menu(
+            step_id="init", menu_options=["holidays", "defaults", "customize"]
         )
-        return self.async_show_form(step_id="init", data_schema=schema)
 
     async def async_step_holidays(self, user_input=None):
         """Add or remove holidays. Removing one discards any override it had."""

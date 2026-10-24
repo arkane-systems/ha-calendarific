@@ -51,7 +51,7 @@ async def test_icon_switches_to_soon_within_threshold(hass: HomeAssistant) -> No
     )
 
     entry2 = await setup_entry(
-        hass, make_entry(title="Second", holidays={"Halloween": {"days_as_soon": 10}})
+        hass, make_entry(title="Second", state="KS", holidays={"Halloween": {"days_as_soon": 10}})
     )
     assert get_state(hass, sensor_id(hass, entry2, "Halloween")).attributes["icon"] == (
         "mdi:calendar"

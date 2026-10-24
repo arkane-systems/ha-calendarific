@@ -13,6 +13,11 @@ ATTR_DATE = "date"
 ATTR_DAYS = "days"
 ATTR_DESCRIPTION = "description"
 
+# Config entry schema version (distinct from the integration version).
+# Minor 2 added the per-instance unique ID.
+CONFIG_ENTRY_VERSION = 1
+CONFIG_ENTRY_MINOR_VERSION = 2
+
 # Configuration
 CONF_ENABLED = "enabled"
 CONF_ICON_NORMAL = "icon_normal"

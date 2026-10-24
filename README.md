@@ -37,6 +37,7 @@ Attributes:
   + [Manual Installation](#manual-installation)
 * [Setting up an instance](#setting-up-an-instance)
 * [Managing holidays](#managing-holidays)
+* [Changing an instance's account or location](#changing-an-instances-account-or-location)
 * [Sensor Settings Reference](#sensor-settings-reference)
 * [Translations](#translations)
 
@@ -86,6 +87,16 @@ Find the instance on the Integrations page and click **Configure** to:
 * **Customize a specific holiday** - pick one tracked holiday and set its own friendly name, icons/date format/etc., overriding the instance defaults just for it. The form shows that holiday's current *effective* settings (its override, or the instance default if it has none). Check **Reset to instance default** to discard the override and go back to inheriting - any other changes made in the same form are ignored when this is checked. Setting a field back to match the instance default has the same effect for that one field; for the friendly name, leaving it blank has the same effect.
 
   A custom friendly name only changes the entity's *display* name - it won't rename its `entity_id`, since Home Assistant assigns that once from the name at entity creation and never renames it automatically afterward. To also change the `entity_id`, use that entity's own settings dialog (Settings → Devices & Services → Entities).
+
+## Changing an instance's account or location
+
+Find the instance on the Integrations page, open its three-dot menu and choose **Reconfigure** to change its API key, country or state.
+
+* Changing only the API key (or re-typing the same country and state) updates the instance in place.
+* Moving the instance to a different country or state asks you to choose its holidays again. Holidays that are also available at the new location are pre-selected and keep any customization you gave them; the others are dropped. If the instance still had its generated name (such as "Calendarific (US)"), the name follows the new location; a name you chose yourself is kept.
+* Each country and state can be added to only one instance, so you can't move an instance onto a location another instance already tracks.
+
+If Calendarific rejects your API key (for example because it was revoked or your subscription expired), Home Assistant asks you to enter a new one.
 
 ## Sensor Settings Reference
 

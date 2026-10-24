@@ -12,6 +12,7 @@ from homeassistant.util import slugify
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.calendarific.const import (
+    CONFIG_ENTRY_MINOR_VERSION,
     CONF_API_KEY,
     CONF_COUNTRY,
     CONF_DATE_FORMAT,
@@ -25,6 +26,7 @@ from custom_components.calendarific.const import (
     CONF_UNIT_OF_MEASUREMENT,
     DOMAIN,
 )
+from custom_components.calendarific.helpers import instance_unique_id
 
 # The frozen "now" for tests that use the fake API. Home Assistant's default
 # test time zone is US/Pacific, so this is 05:00 on 2026-10-24 locally.
@@ -76,6 +78,8 @@ def make_entry(
     return MockConfigEntry(
         domain=DOMAIN,
         title=title,
+        minor_version=CONFIG_ENTRY_MINOR_VERSION,
+        unique_id=instance_unique_id(country, state),
         data={CONF_API_KEY: api_key, CONF_COUNTRY: country, CONF_STATE: state},
         options={
             CONF_DEFAULTS: dict(DEFAULT_SETTINGS) if defaults is None else defaults,

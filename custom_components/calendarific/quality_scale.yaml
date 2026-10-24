@@ -15,9 +15,7 @@ rules:
   brands: done
   common-modules: done
   config-flow-test-coverage: done
-  config-flow:
-    status: todo
-    comment: The form fields have no data_description entries.
+  config-flow: done
   dependency-transparency:
     status: exempt
     comment: The integration has no external requirements.
@@ -49,8 +47,10 @@ rules:
   test-before-configure: done
   test-before-setup: done
   unique-config-entry:
-    status: todo
-    comment: Config entries have no unique ID, so a country/state can be added twice.
+    status: done
+    comment: >
+      Each instance is identified by its country and state. Entries created before
+      this existed get an ID in a migration (a duplicate is left without one).
 
   # Silver
   action-exceptions:
@@ -101,9 +101,13 @@ rules:
     status: exempt
     comment: Every entity is part of the integration's purpose.
   entity-translations: todo
-  exception-translations: todo
+  exception-translations: done
   icon-translations: todo
-  reconfiguration-flow: todo
+  reconfiguration-flow:
+    status: done
+    comment: >
+      The API key, country and state can be changed. Moving to another place asks
+      for the holidays again and keeps customizations of those still on offer.
   repair-issues: todo
   stale-devices: todo
 

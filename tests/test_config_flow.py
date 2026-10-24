@@ -20,7 +20,7 @@ from custom_components.calendarific.const import (
     DOMAIN,
 )
 
-from .common import DEFAULT_SETTINGS, make_entry, setup_entry
+from .common import DEFAULT_SETTINGS, get_state, make_entry, sensor_id, setup_entry
 from .conftest import FakeApi
 
 pytestmark = pytest.mark.usefixtures("frozen_today")
@@ -162,10 +162,11 @@ async def test_holidays_step_requires_a_selection(
 
 async def _open_options(hass: HomeAssistant, entry_id: str, action: str) -> Any:
     result = await hass.config_entries.options.async_init(entry_id)
-    assert result["type"] is FlowResultType.FORM
+    assert result["type"] is FlowResultType.MENU
     assert result["step_id"] == "init"
+    assert result["menu_options"] == ["holidays", "defaults", "customize"]
     return await hass.config_entries.options.async_configure(
-        result["flow_id"], {"action": action}
+        result["flow_id"], {"next_step_id": action}
     )
 
 
@@ -394,3 +395,232 @@ async def test_reauth_reports_connection_problems(
     )
 
     assert result["errors"] == {"base": "cannot_connect"}
+
+
+# -- unique config entries ------------------------------------------------------
+
+
+async def test_created_entry_has_a_unique_id_and_current_schema_version(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    result = await _start_user_flow(
+        hass, {CONF_API_KEY: "secret", CONF_COUNTRY: "US", CONF_STATE: "KS"}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], dict(DEFAULT_SETTINGS)
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HOLIDAYS: ["Halloween"]}
+    )
+    await hass.async_block_till_done()
+
+    entry = result["result"]
+    assert entry.unique_id == "us-ks"
+    assert (entry.version, entry.minor_version) == (1, 2)
+
+
+async def test_user_flow_strips_whitespace(hass: HomeAssistant, fake_api: FakeApi) -> None:
+    result = await _start_user_flow(
+        hass, {CONF_API_KEY: "secret", CONF_COUNTRY: " us ", CONF_STATE: " ks "}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], dict(DEFAULT_SETTINGS)
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HOLIDAYS: ["Halloween"]}
+    )
+    await hass.async_block_till_done()
+
+    assert result["data"][CONF_COUNTRY] == "us"
+    assert result["data"][CONF_STATE] == "ks"
+
+
+@pytest.mark.parametrize("country", ["US", "us", " Us "])
+async def test_same_country_and_state_cannot_be_added_twice(
+    hass: HomeAssistant, fake_api: FakeApi, country: str
+) -> None:
+    await setup_entry(hass, make_entry(country="US", state="KS"))
+    calls = len(fake_api.calls)
+
+    result = await _start_user_flow(
+        hass, {CONF_API_KEY: "other", CONF_COUNTRY: country, CONF_STATE: "ks"}
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert len(fake_api.calls) == calls  # rejected before spending any quota
+
+
+async def test_another_state_of_the_same_country_is_allowed(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    await setup_entry(hass, make_entry(country="US", state="KS"))
+
+    result = await _start_user_flow(
+        hass, {CONF_API_KEY: "secret", CONF_COUNTRY: "US", CONF_STATE: "MO"}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "defaults"
+
+
+# -- reconfigure flow -----------------------------------------------------------
+
+
+async def test_reconfigure_with_a_new_key_keeps_the_place(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    entry = await setup_entry(hass, make_entry(country="US", state="KS", api_key="old"))
+
+    result = await entry.start_reconfigure_flow(hass)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "reconfigure"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_API_KEY: "new", CONF_COUNTRY: "US", CONF_STATE: "KS"}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.data[CONF_API_KEY] == "new"
+    assert entry.unique_id == "us-ks"
+    assert entry.state is ConfigEntryState.LOADED
+    assert fake_api.calls[-1]["api_key"] == "new"
+
+
+async def test_reconfigure_treats_a_case_change_as_the_same_place(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    entry = await setup_entry(hass, make_entry(country="US", state="KS"))
+
+    result = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_API_KEY: "test-key", CONF_COUNTRY: "us ", CONF_STATE: "ks"}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert entry.data[CONF_COUNTRY] == "us"
+    assert entry.options[CONF_HOLIDAYS] == {"Halloween": {}, "Christmas Day": {}}
+
+
+async def _move_to_gb(hass: HomeAssistant, entry: Any) -> Any:
+    result = await entry.start_reconfigure_flow(hass)
+    return await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_API_KEY: "test-key", CONF_COUNTRY: "GB", CONF_STATE: ""}
+    )
+
+
+async def test_moving_to_another_country_repicks_holidays_and_keeps_customizations(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    entry = await setup_entry(
+        hass,
+        make_entry(
+            title="Calendarific (US)",
+            holidays={"Halloween": {"name": "Spooky"}, "Christmas Day": {"icon_normal": "mdi:tree"}},
+        ),
+    )
+    # Halloween isn't offered in the new place; Christmas Day is.
+    for year, holidays in fake_api.holidays_by_year.items():
+        fake_api.holidays_by_year[year] = [h for h in holidays if h["name"] != "Halloween"]
+
+    result = await _move_to_gb(hass, entry)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "reconfigure_holidays"
+    assert result["data_schema"]({})[CONF_HOLIDAYS] == ["Christmas Day"]  # carried over
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HOLIDAYS: ["Christmas Day", "Founders Day"]}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.unique_id == "gb"
+    assert entry.data[CONF_COUNTRY] == "GB"
+    assert entry.title == "Calendarific (GB)"  # followed the place: it was never renamed
+    assert entry.options[CONF_HOLIDAYS] == {
+        "Christmas Day": {"icon_normal": "mdi:tree"},  # customization kept
+        "Founders Day": {},
+    }
+    assert entry.options[CONF_DEFAULTS] == DEFAULT_SETTINGS
+    assert entry.state is ConfigEntryState.LOADED
+    assert fake_api.calls[-1]["country"] == "GB"  # refetched for the new place
+    assert get_state(hass, sensor_id(hass, entry, "Christmas Day")).state == "62"
+
+
+async def test_moving_keeps_a_title_the_user_chose(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    entry = await setup_entry(hass, make_entry(title="Home holidays"))
+
+    result = await _move_to_gb(hass, entry)
+    await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HOLIDAYS: ["Christmas Day"]}
+    )
+    await hass.async_block_till_done()
+
+    assert entry.title == "Home holidays"
+    assert entry.unique_id == "gb"
+
+
+async def test_moving_requires_at_least_one_holiday(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    entry = await setup_entry(hass, make_entry())
+
+    result = await _move_to_gb(hass, entry)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HOLIDAYS: []}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "no_holidays_selected"}
+    assert entry.data[CONF_COUNTRY] == "US"  # nothing changed
+
+
+async def test_cannot_move_onto_a_place_another_instance_tracks(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    await setup_entry(hass, make_entry(title="UK", country="GB"))
+    entry = await setup_entry(hass, make_entry(title="US", country="US"))
+    calls = len(fake_api.calls)
+
+    result = await _move_to_gb(hass, entry)
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "reconfigure"
+    assert result["errors"] == {"base": "already_configured"}
+    assert len(fake_api.calls) == calls
+
+
+@pytest.mark.parametrize(
+    ("break_api", "error"),
+    [
+        (lambda api: api.fail(401), "invalid_auth"),
+        (lambda api: api.fail(429), "rate_limited"),
+        (lambda api: api.raise_error(ClientError()), "cannot_connect"),
+    ],
+)
+async def test_reconfigure_reports_why_the_api_failed(
+    hass: HomeAssistant, fake_api: FakeApi, break_api: Any, error: str
+) -> None:
+    entry = await setup_entry(hass, make_entry())
+    break_api(fake_api)
+
+    result = await _move_to_gb(hass, entry)
+
+    assert result["errors"] == {"base": error}
+    assert entry.data[CONF_COUNTRY] == "US"
+
+
+async def test_reconfigure_errors_when_the_new_place_has_no_holidays(
+    hass: HomeAssistant, fake_api: FakeApi
+) -> None:
+    entry = await setup_entry(hass, make_entry())
+    fake_api.holidays_by_year = {}
+
+    result = await _move_to_gb(hass, entry)
+
+    assert result["errors"] == {"base": "no_holidays_found"}
