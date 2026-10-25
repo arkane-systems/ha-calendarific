@@ -25,13 +25,6 @@ def _friendly_name(hass: HomeAssistant, entity_id: str) -> str:
     return friendly_name
 
 
-def _with_optional_device_prefix(name: str) -> set[str]:
-    """Home Assistant 2026.10 and newer put the device name (here "Test"/"Home")
-    in front of the state's friendly_name for device entities that don't use
-    has_entity_name; older versions leave the plain name."""
-    return {name, f"Test {name}", f"Home {name}"}
-
-
 async def test_state_is_days_remaining_with_attributes(hass: HomeAssistant) -> None:
     """The state is the whole days until the next occurrence."""
     entry = await setup_entry(hass, make_entry())
@@ -118,7 +111,7 @@ async def test_custom_name_changes_friendly_name_only(hass: HomeAssistant) -> No
     entity_id = sensor_id(hass, entry, "Christmas Day")
 
     assert _registered_name(hass, entity_id) == "Xmas"
-    assert _friendly_name(hass, entity_id) in _with_optional_device_prefix("Xmas")
+    assert _friendly_name(hass, entity_id) == "Xmas"
 
 
 async def test_next_holiday_reports_soonest_tracked_holiday(hass: HomeAssistant) -> None:
@@ -152,7 +145,7 @@ async def test_holiday_sensors_are_named_after_the_holiday_alone(hass: HomeAssis
     entity_id = sensor_id(hass, entry, "Christmas Day")
 
     assert _registered_name(hass, entity_id) == "Christmas Day"
-    assert _friendly_name(hass, entity_id) in _with_optional_device_prefix("Christmas Day")
+    assert _friendly_name(hass, entity_id) == "Christmas Day"
 
 
 async def test_next_holiday_is_prefixed_with_its_instance(hass: HomeAssistant) -> None:

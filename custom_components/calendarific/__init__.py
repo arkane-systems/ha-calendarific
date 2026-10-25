@@ -26,6 +26,7 @@ from .helpers import (
     next_holiday_unique_id,
 )
 from .issues import async_delete_issues
+from .names import async_apply_plain_names, async_snapshot_registered_names
 
 PLATFORMS = [Platform.SENSOR, Platform.CALENDAR]
 
@@ -47,7 +48,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: CalendarificConfigEntry)
     entry.runtime_data = coordinator
 
     _async_remove_stale_entities(hass, entry)
+    previous_names = async_snapshot_registered_names(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    async_apply_plain_names(hass, entry, previous_names)
     return True
 
 

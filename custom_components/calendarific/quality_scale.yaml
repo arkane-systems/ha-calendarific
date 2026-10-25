@@ -41,10 +41,11 @@ rules:
     status: exempt
     comment: >
       Holiday sensors are named after API data and register under the holiday's own
-      name (for example "Christmas Day"), which is neither translatable nor something
-      to prefix ourselves; Home Assistant 2026.10 and newer add the device name to
-      their entity IDs and friendly_name on its own while the interface shows the
-      plain name. The Next Holiday sensor and the calendar do set has_entity_name.
+      name (for example "Christmas Day"), which is not translatable and which we do
+      not want prefixed in templates or voice. Home Assistant 2026.10 and newer would
+      add the device name to their friendly_name, so names.py stores the plain name
+      in the entity registry. The Next Holiday sensor and the calendar do set
+      has_entity_name.
   runtime-data: done
   test-before-configure: done
   test-before-setup: done

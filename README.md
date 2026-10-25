@@ -45,7 +45,9 @@ Each instance creates one device (named after the instance) holding these entiti
 | **Next Holiday** sensor, named "*instance name* Next holiday" | The name of whichever tracked holiday is coming up soonest (its custom name, if it has one). | **days**: the days remaining until it. |
 | **Calendar**, named after the instance | The tracked holidays as all-day events. | Standard calendar attributes for the current or next event. |
 
-Home Assistant 2026.10 and newer put the instance's name in front of a holiday sensor's entity ID and of the `friendly_name` attribute (for example `sensor.home_christmas_day`), while the interface still shows just the holiday name. Older versions (checked with 2026.2) use the plain `sensor.christmas_day`. The prefix keeps overlapping holidays from two instances apart. Existing entity IDs never change.
+A holiday sensor's name is always just the holiday (or the custom name you gave it), in the interface and in templates, automations and voice. Home Assistant 2026.10 and newer put the instance's name in front of the *entity ID* (for example `sensor.home_christmas_day`), which keeps overlapping holidays from two instances apart; older versions (checked with 2026.2) use the plain `sensor.christmas_day`. Existing entity IDs never change.
+
+To keep the name plain on 2026.10 and newer, the integration stores it as the sensor's name in the entity registry (the same place a rename in the sensor's settings goes). A name you set there yourself is never overwritten; clearing it restores the holiday's name the next time the instance loads.
 
 A holiday sensor's icon changes with the distance to the holiday: the *normal* icon, then the *soon* icon within the "soon" threshold, then the *today* icon on the day.
 
