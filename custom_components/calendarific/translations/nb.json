@@ -1,11 +1,17 @@
 {
     "config": {
         "abort": {
-            "no_holidays_found": "Ingen høytider funnet. Forsikre deg om at du har konfigurert et gyldig land, delstat og api-nøkkel."
+            "already_configured": "Plasseringen er allerede konfigurert",
+            "reauth_successful": "Re-autentisering var vellykket",
+            "reconfigure_successful": "Rekonfigurering var vellykket"
         },
         "error": {
             "no_holidays_found": "Ingen høytider funnet. Forsikre deg om at du har konfigurert et gyldig land, delstat og api-nøkkel.",
-            "no_holidays_selected": "Velg minst én høytid."
+            "no_holidays_selected": "Velg minst én høytid.",
+            "invalid_auth": "API-nøkkelen ble avvist. Kontroller at den er riktig og at Calendarific-abonnementet ditt er aktivt.",
+            "cannot_connect": "Fikk ikke kontakt med Calendarific. Kontroller nettverkstilkoblingen og prøv igjen.",
+            "rate_limited": "Calendarific-kontoen din har nådd den månedlige grensen for forespørsler. Prøv igjen senere eller oppgrader abonnementet.",
+            "already_configured": "En annen instans sporer allerede dette landet og denne delstaten."
         },
         "step": {
             "user": {
@@ -16,6 +22,12 @@
                     "api_key": "Din Calendarific API-nøkkel",
                     "country": "Landkode",
                     "state": "Delstat-/regionkode (valgfritt)"
+                },
+                "data_description": {
+                    "name": "Et navn på denne instansen. Hvis feltet står tomt, genereres ett fra land og delstat.",
+                    "api_key": "API-nøkkelen fra Calendarific-kontoen din.",
+                    "country": "Den tobokstavers ISO 3166-1-landkoden, for eksempel US eller GB.",
+                    "state": "En valgfri ISO 3166-2-regionkode for regionale høytider. La stå tomt for kun nasjonale høytider."
                 }
             },
             "defaults": {
@@ -26,8 +38,14 @@
                     "icon_today": "Ikon når en høytid er i dag",
                     "days_as_soon": "Antall dager for at en høytid regnes som 'snart'",
                     "icon_soon": "Ikon når en høytid er snart",
-                    "date_format": "Datoformat (Python strftime-syntaks)",
-                    "unit_of_measurement": "Tekst for unit_of_measurement"
+                    "date_format": "Datoformat (Python strftime-syntaks)"
+                },
+                "data_description": {
+                    "icon_normal": "Ikon som vises mens høytiden er lenger unna enn grensen for 'snart', for eksempel mdi:calendar-blank.",
+                    "icon_today": "Ikon som vises på selve høytidsdagen.",
+                    "days_as_soon": "En høytid som er så mange dager unna eller færre, regnes som 'snart'.",
+                    "icon_soon": "Ikon som vises mens høytiden er 'snart'.",
+                    "date_format": "Hvordan datoattributtet skrives, med Python strftime-koder som %Y-%m-%d (se strftime.org)."
                 }
             },
             "holidays": {
@@ -35,13 +53,53 @@
                 "description": "Velg hvilke høytider det skal opprettes sensorer for. Du kan legge til, fjerne eller tilpasse høytider senere fra denne instansens innstillinger.",
                 "data": {
                     "holidays": "Høytider"
+                },
+                "data_description": {
+                    "holidays": "Høytidene det opprettes en sensor for. Calendarific tilbyr denne listen for landet og delstaten du valgte."
+                }
+            },
+            "reauth_confirm": {
+                "title": "Skriv inn Calendarific API-nøkkelen din på nytt",
+                "description": "Calendarific avviste API-nøkkelen for {title}. Skriv inn en gyldig nøkkel for å gjenoppta oppdateringene.",
+                "data": {
+                    "api_key": "Din Calendarific API-nøkkel"
+                },
+                "data_description": {
+                    "api_key": "En gyldig API-nøkkel for denne Calendarific-kontoen."
+                }
+            },
+            "reconfigure": {
+                "title": "Rekonfigurer denne instansen",
+                "description": "Endre API-nøkkelen, landet eller delstaten. Hvis du flytter instansen til et annet land eller en annen delstat, må du velge høytidene på nytt.",
+                "data": {
+                    "api_key": "Din Calendarific API-nøkkel",
+                    "country": "Landkode",
+                    "state": "Delstat-/regionkode (valgfritt)"
+                },
+                "data_description": {
+                    "api_key": "API-nøkkelen fra Calendarific-kontoen din.",
+                    "country": "Den tobokstavers ISO 3166-1-landkoden, for eksempel US eller GB.",
+                    "state": "En valgfri ISO 3166-2-regionkode for regionale høytider. La stå tomt for kun nasjonale høytider."
+                }
+            },
+            "reconfigure_holidays": {
+                "title": "Velg høytider",
+                "description": "Høytider som ble sporet på den gamle plasseringen og også er tilgjengelige her, er forhåndsvalgt, og tilpasningene beholdes. Resten fjernes.",
+                "data": {
+                    "holidays": "Høytider"
+                },
+                "data_description": {
+                    "holidays": "Høytidene det opprettes en sensor for."
                 }
             }
         }
     },
     "options": {
         "abort": {
-            "no_holidays_configured": "Denne instansen har ingen høytider konfigurert ennå. Legg til noen først."
+            "no_holidays_configured": "Denne instansen har ingen høytider konfigurert ennå. Legg til noen først.",
+            "invalid_auth": "API-nøkkelen ble avvist. Kontroller at den er riktig og at Calendarific-abonnementet ditt er aktivt.",
+            "cannot_connect": "Fikk ikke kontakt med Calendarific. Kontroller nettverkstilkoblingen og prøv igjen.",
+            "rate_limited": "Calendarific-kontoen din har nådd den månedlige grensen for forespørsler. Prøv igjen senere eller oppgrader abonnementet."
         },
         "error": {
             "no_holidays_selected": "Velg minst én høytid."
@@ -49,8 +107,10 @@
         "step": {
             "init": {
                 "title": "Administrer denne instansen",
-                "data": {
-                    "action": "Hva vil du gjøre?"
+                "menu_options": {
+                    "holidays": "Legg til eller fjern høytider",
+                    "defaults": "Rediger standardinnstillinger for instans",
+                    "customize": "Tilpass en bestemt høytid"
                 }
             },
             "holidays": {
@@ -58,6 +118,9 @@
                 "description": "Høytider du fjerner merket fra, slutter å bli sporet og mister eventuell tilpasning de hadde.",
                 "data": {
                     "holidays": "Høytider"
+                },
+                "data_description": {
+                    "holidays": "Høytidene det opprettes en sensor for. Høytider du fjerner merket fra, mister tilpasningene sine."
                 }
             },
             "defaults": {
@@ -68,19 +131,28 @@
                     "icon_today": "Ikon når en høytid er i dag",
                     "days_as_soon": "Antall dager for at en høytid regnes som 'snart'",
                     "icon_soon": "Ikon når en høytid er snart",
-                    "date_format": "Datoformat (Python strftime-syntaks)",
-                    "unit_of_measurement": "Tekst for unit_of_measurement"
+                    "date_format": "Datoformat (Python strftime-syntaks)"
+                },
+                "data_description": {
+                    "icon_normal": "Ikon som vises mens høytiden er lenger unna enn grensen for 'snart', for eksempel mdi:calendar-blank.",
+                    "icon_today": "Ikon som vises på selve høytidsdagen.",
+                    "days_as_soon": "En høytid som er så mange dager unna eller færre, regnes som 'snart'.",
+                    "icon_soon": "Ikon som vises mens høytiden er 'snart'.",
+                    "date_format": "Hvordan datoattributtet skrives, med Python strftime-koder som %Y-%m-%d (se strftime.org)."
                 }
             },
             "customize": {
                 "title": "Tilpass en høytid",
                 "data": {
                     "holiday": "Høytid"
+                },
+                "data_description": {
+                    "holiday": "Den sporede høytiden du vil endre innstillingene for."
                 }
             },
             "customize_values": {
                 "title": "Tilpass {holiday}",
-                "description": "Verdiene som vises er denne høytidens gjeldende faktiske innstillinger (sin egen overstyring, eller standarden for instansen). Kryss av for 'Tilbakestill til standard' for å fjerne eventuell overstyring for denne høytiden og gå tilbake til å bruke standardinnstillingene for instansen - andre felt ignoreres hvis dette er krysset av. Et vennlig navn endrer bare visningsnavnet - det vil ikke endre denne høytidens allerede tildelte enhets-ID; bruk enhetens egne innstillinger for det.",
+                "description": "Verdiene som vises er denne høytidens gjeldende faktiske innstillinger (sin egen overstyring, eller standarden for instansen). Kryss av for 'Tilbakestill til standard for instans' for å fjerne eventuell overstyring for denne høytiden og gå tilbake til å bruke standardinnstillingene for instansen - andre felt ignoreres hvis dette er krysset av. Et vennlig navn endrer bare visningsnavnet - det vil ikke endre denne høytidens allerede tildelte enhets-ID; bruk enhetens egne innstillinger for det.",
                 "data": {
                     "name": "Vennlig navn (la stå tomt for å bruke høytidens navn)",
                     "icon_normal": "Ikon",
@@ -88,8 +160,52 @@
                     "days_as_soon": "Antall dager for at denne høytiden regnes som 'snart'",
                     "icon_soon": "Ikon når denne høytiden er snart",
                     "date_format": "Datoformat (Python strftime-syntaks)",
-                    "unit_of_measurement": "Tekst for unit_of_measurement",
                     "reset_to_default": "Tilbakestill til standard for instans"
+                },
+                "data_description": {
+                    "name": "Et visningsnavn for sensoren til denne høytiden. La stå tomt for å bruke høytidens eget navn. Dette endrer ikke enhets-ID-en.",
+                    "icon_normal": "Ikon som vises mens høytiden er lenger unna enn grensen for 'snart', for eksempel mdi:calendar-blank.",
+                    "icon_today": "Ikon som vises på selve høytidsdagen.",
+                    "days_as_soon": "En høytid som er så mange dager unna eller færre, regnes som 'snart'.",
+                    "icon_soon": "Ikon som vises mens høytiden er 'snart'.",
+                    "date_format": "Hvordan datoattributtet skrives, med Python strftime-koder som %Y-%m-%d (se strftime.org).",
+                    "reset_to_default": "Forkast tilpasningene for denne høytiden og bruk standardinnstillingene for instansen. De andre feltene ignoreres hvis dette er krysset av."
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "legacy_entry": {
+            "message": "Denne oppføringen ble opprettet av en eldre versjon av Calendarific og er ikke lenger kompatibel. Fjern den og legg til integrasjonen på nytt"
+        },
+        "auth_failed": {
+            "message": "Calendarific avviste API-nøkkelen: {detail}"
+        },
+        "update_failed": {
+            "message": "Feil ved henting av høytider fra Calendarific: {detail}"
+        }
+    },
+    "entity": {
+        "sensor": {
+            "next_holiday": {
+                "name": "Neste høytid"
+            }
+        },
+        "calendar": {
+            "holidays": {
+                "name": "Høytider"
+            }
+        }
+    },
+    "issues": {
+        "holiday_missing": {
+            "title": "{holiday} er ikke lenger oppført i {title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Slutte å spore {holiday}?",
+                        "description": "Calendarific oppfører ikke lenger en høytid med navnet {holiday} for denne instansens land og delstat, så sensoren kan ikke vise en dato. Bekreft for å fjerne den fra instansen. Hvis høytiden har fått nytt navn, kan du legge til det nye navnet fra instansens innstillinger etterpå."
+                    }
                 }
             }
         }

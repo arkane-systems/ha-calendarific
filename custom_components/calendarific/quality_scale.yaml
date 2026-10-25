@@ -1,0 +1,142 @@
+# Self-assessment against the Home Assistant integration quality scale:
+# https://contributors.home-assistant.io/core/quality-scale/rules/
+# Home Assistant does not grade custom integrations; this file tracks the yardstick.
+# All rules are met or exempt, which is Platinum.
+rules:
+  # Bronze
+  action-setup:
+    status: exempt
+    comment: The integration does not provide any service actions.
+  appropriate-polling:
+    status: done
+    comment: >
+      One coordinator fetches this year's and next year's holidays once a day. A
+      local-midnight timer recomputes day counts without any request.
+  brands: done
+  common-modules: done
+  config-flow-test-coverage: done
+  config-flow: done
+  dependency-transparency:
+    status: exempt
+    comment: The integration has no external requirements.
+  docs-actions:
+    status: exempt
+    comment: The integration does not provide any service actions.
+  docs-conditions:
+    status: exempt
+    comment: The integration does not provide any conditions.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  docs-triggers:
+    status: exempt
+    comment: The integration does not provide any triggers.
+  entity-event-setup:
+    status: exempt
+    comment: >
+      Entities only listen to the coordinator, through CoordinatorEntity. The
+      midnight timer belongs to the coordinator and is released on unload.
+  entity-unique-id: done
+  has-entity-name:
+    status: exempt
+    comment: >
+      Holiday sensors are named after API data and register under the holiday's own
+      name (for example "Christmas Day"), which is not translatable and which we do
+      not want prefixed in templates or voice. Home Assistant 2026.10 and newer would
+      add the device name to their friendly_name, so names.py stores the plain name
+      in the entity registry. The Next Holiday sensor and the calendar do set
+      has_entity_name.
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry:
+    status: done
+    comment: >
+      Each instance is identified by its country and state. Entries created before
+      this existed get an ID in a migration (a duplicate is left without one).
+
+  # Silver
+  action-exceptions:
+    status: exempt
+    comment: The integration does not provide any service actions.
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable:
+    status: done
+    comment: >
+      Entities keep serving cached data through an outage while it still covers
+      today, and become unavailable once it does not.
+  integration-owner: done
+  log-when-unavailable: done
+  parallel-updates: done
+  reauthentication-flow: done
+  test-coverage: done
+
+  # Gold
+  devices: done
+  diagnostics: done
+  discovery-update-info:
+    status: exempt
+    comment: The integration is a cloud service and cannot be discovered.
+  discovery:
+    status: exempt
+    comment: The integration is a cloud service and cannot be discovered.
+  docs-data-update: done
+  docs-examples: done
+  docs-known-limitations: done
+  docs-supported-devices:
+    status: exempt
+    comment: The integration talks to a cloud API; each instance is one virtual device.
+  docs-supported-functions: done
+  docs-troubleshooting: done
+  docs-use-cases: done
+  dynamic-devices:
+    status: exempt
+    comment: Each config entry has exactly one device.
+  entity-category:
+    status: exempt
+    comment: The integration has no configuration or diagnostic entities.
+  entity-device-class:
+    status: done
+    comment: >
+      Holiday sensors are DURATION in days. Next Holiday's state is a holiday name,
+      for which no device class fits.
+  entity-disabled-by-default:
+    status: exempt
+    comment: Every entity is part of the integration's purpose.
+  entity-translations:
+    status: done
+    comment: >
+      Next Holiday is translated. Holiday sensors are named after data from the API,
+      and entity names only translate when has_entity_name is set.
+  exception-translations: done
+  icon-translations:
+    status: done
+    comment: >
+      The calendar and Next Holiday use icons.json. Holiday sensors take their icons
+      from the user's settings (normal, soon and today), which is deliberate.
+  reconfiguration-flow:
+    status: done
+    comment: >
+      The API key, country and state can be changed. Moving to another place asks
+      for the holidays again and keeps customizations of those still on offer.
+  repair-issues:
+    status: done
+    comment: A repair offers to stop tracking a holiday Calendarific no longer lists.
+  stale-devices:
+    status: done
+    comment: >
+      Each instance has one device, removed with its entry. Entities of holidays that
+      are no longer tracked are removed at setup.
+
+  # Platinum
+  async-dependency:
+    status: done
+    comment: The API client is an in-tree aiohttp client; there is no separate library.
+  inject-websession:
+    status: done
+    comment: CalendarificClient takes Home Assistant's shared aiohttp session.
+  strict-typing:
+    status: done
+    comment: mypy runs in strict mode over the integration and its tests in CI.

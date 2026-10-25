@@ -1,11 +1,17 @@
 {
     "config": {
         "abort": {
-            "no_holidays_found": "Geen feestdagen gevonden. Zorg ervoor dat u een geldig land, staat en api-sleutel heeft geconfigureerd."
+            "already_configured": "Locatie is al geconfigureerd",
+            "reauth_successful": "Herauthenticatie was succesvol",
+            "reconfigure_successful": "Herconfiguratie was succesvol"
         },
         "error": {
             "no_holidays_found": "Geen feestdagen gevonden. Zorg ervoor dat u een geldig land, staat en api-sleutel heeft geconfigureerd.",
-            "no_holidays_selected": "Selecteer minstens één feestdag."
+            "no_holidays_selected": "Selecteer minstens één feestdag.",
+            "invalid_auth": "De API-sleutel is geweigerd. Controleer of hij correct is en of uw Calendarific-abonnement actief is.",
+            "cannot_connect": "Calendarific is niet bereikbaar. Controleer uw netwerkverbinding en probeer het opnieuw.",
+            "rate_limited": "Uw Calendarific-account heeft de maandelijkse limiet voor aanvragen bereikt. Probeer het later opnieuw of upgrade uw abonnement.",
+            "already_configured": "Een andere instantie volgt dit land en deze staat al."
         },
         "step": {
             "user": {
@@ -16,6 +22,12 @@
                     "api_key": "Uw Calendarific API-sleutel",
                     "country": "Landcode",
                     "state": "Staat-/regiocode (optioneel)"
+                },
+                "data_description": {
+                    "name": "Een naam voor deze instantie. Als u dit leeg laat, wordt er een gegenereerd op basis van het land en de staat.",
+                    "api_key": "De API-sleutel van uw Calendarific-account.",
+                    "country": "De tweeletterige ISO 3166-1-landcode, bijvoorbeeld US of GB.",
+                    "state": "Een optionele ISO 3166-2-regiocode voor regionale feestdagen. Laat leeg voor alleen nationale feestdagen."
                 }
             },
             "defaults": {
@@ -26,8 +38,14 @@
                     "icon_today": "Icoon wanneer een feestdag vandaag is",
                     "days_as_soon": "Aantal dagen waarvoor een feestdag als 'binnenkort' wordt beschouwd",
                     "icon_soon": "Icoon wanneer een feestdag binnenkort is",
-                    "date_format": "Datumformaat (Python strftime-syntax)",
-                    "unit_of_measurement": "Tekst voor unit_of_measurement"
+                    "date_format": "Datumformaat (Python strftime-syntax)"
+                },
+                "data_description": {
+                    "icon_normal": "Icoon dat wordt getoond zolang de feestdag verder weg is dan de drempel voor 'binnenkort', bijvoorbeeld mdi:calendar-blank.",
+                    "icon_today": "Icoon dat op de dag van de feestdag wordt getoond.",
+                    "days_as_soon": "Een feestdag die zoveel dagen of minder weg is, geldt als 'binnenkort'.",
+                    "icon_soon": "Icoon dat wordt getoond zolang de feestdag 'binnenkort' is.",
+                    "date_format": "Hoe het datumattribuut wordt geschreven, met Python strftime-codes zoals %Y-%m-%d (zie strftime.org)."
                 }
             },
             "holidays": {
@@ -35,13 +53,53 @@
                 "description": "Kies voor welke feestdagen sensoren moeten worden aangemaakt. U kunt later feestdagen toevoegen, verwijderen of aanpassen via de opties van deze instantie.",
                 "data": {
                     "holidays": "Feestdagen"
+                },
+                "data_description": {
+                    "holidays": "De feestdagen waarvoor een sensor wordt aangemaakt. Calendarific biedt deze lijst aan voor het land en de staat die u hebt gekozen."
+                }
+            },
+            "reauth_confirm": {
+                "title": "Voer uw Calendarific API-sleutel opnieuw in",
+                "description": "Calendarific heeft de API-sleutel voor {title} geweigerd. Voer een geldige sleutel in om de updates te hervatten.",
+                "data": {
+                    "api_key": "Uw Calendarific API-sleutel"
+                },
+                "data_description": {
+                    "api_key": "Een geldige API-sleutel voor dit Calendarific-account."
+                }
+            },
+            "reconfigure": {
+                "title": "Deze instantie opnieuw configureren",
+                "description": "Wijzig de API-sleutel, het land of de staat. Als u de instantie naar een ander land of een andere staat verplaatst, moet u de feestdagen opnieuw kiezen.",
+                "data": {
+                    "api_key": "Uw Calendarific API-sleutel",
+                    "country": "Landcode",
+                    "state": "Staat-/regiocode (optioneel)"
+                },
+                "data_description": {
+                    "api_key": "De API-sleutel van uw Calendarific-account.",
+                    "country": "De tweeletterige ISO 3166-1-landcode, bijvoorbeeld US of GB.",
+                    "state": "Een optionele ISO 3166-2-regiocode voor regionale feestdagen. Laat leeg voor alleen nationale feestdagen."
+                }
+            },
+            "reconfigure_holidays": {
+                "title": "Selecteer feestdagen",
+                "description": "Feestdagen die op de oude locatie werden gevolgd en hier ook beschikbaar zijn, zijn vooraf geselecteerd en behouden hun aanpassingen. De rest wordt verwijderd.",
+                "data": {
+                    "holidays": "Feestdagen"
+                },
+                "data_description": {
+                    "holidays": "De feestdagen waarvoor een sensor wordt aangemaakt."
                 }
             }
         }
     },
     "options": {
         "abort": {
-            "no_holidays_configured": "Deze instantie heeft nog geen feestdagen geconfigureerd. Voeg er eerst enkele toe."
+            "no_holidays_configured": "Deze instantie heeft nog geen feestdagen geconfigureerd. Voeg er eerst enkele toe.",
+            "invalid_auth": "De API-sleutel is geweigerd. Controleer of hij correct is en of uw Calendarific-abonnement actief is.",
+            "cannot_connect": "Calendarific is niet bereikbaar. Controleer uw netwerkverbinding en probeer het opnieuw.",
+            "rate_limited": "Uw Calendarific-account heeft de maandelijkse limiet voor aanvragen bereikt. Probeer het later opnieuw of upgrade uw abonnement."
         },
         "error": {
             "no_holidays_selected": "Selecteer minstens één feestdag."
@@ -49,8 +107,10 @@
         "step": {
             "init": {
                 "title": "Deze instantie beheren",
-                "data": {
-                    "action": "Wat wilt u doen?"
+                "menu_options": {
+                    "holidays": "Feestdagen toevoegen of verwijderen",
+                    "defaults": "Standaardinstellingen van de instantie bewerken",
+                    "customize": "Een specifieke feestdag aanpassen"
                 }
             },
             "holidays": {
@@ -58,6 +118,9 @@
                 "description": "Feestdagen die u deselecteert, worden niet langer gevolgd en verliezen eventuele aanpassingen die ze hadden.",
                 "data": {
                     "holidays": "Feestdagen"
+                },
+                "data_description": {
+                    "holidays": "De feestdagen waarvoor een sensor wordt aangemaakt. Gedeselecteerde feestdagen verliezen hun aanpassingen."
                 }
             },
             "defaults": {
@@ -68,19 +131,28 @@
                     "icon_today": "Icoon wanneer een feestdag vandaag is",
                     "days_as_soon": "Aantal dagen waarvoor een feestdag als 'binnenkort' wordt beschouwd",
                     "icon_soon": "Icoon wanneer een feestdag binnenkort is",
-                    "date_format": "Datumformaat (Python strftime-syntax)",
-                    "unit_of_measurement": "Tekst voor unit_of_measurement"
+                    "date_format": "Datumformaat (Python strftime-syntax)"
+                },
+                "data_description": {
+                    "icon_normal": "Icoon dat wordt getoond zolang de feestdag verder weg is dan de drempel voor 'binnenkort', bijvoorbeeld mdi:calendar-blank.",
+                    "icon_today": "Icoon dat op de dag van de feestdag wordt getoond.",
+                    "days_as_soon": "Een feestdag die zoveel dagen of minder weg is, geldt als 'binnenkort'.",
+                    "icon_soon": "Icoon dat wordt getoond zolang de feestdag 'binnenkort' is.",
+                    "date_format": "Hoe het datumattribuut wordt geschreven, met Python strftime-codes zoals %Y-%m-%d (zie strftime.org)."
                 }
             },
             "customize": {
                 "title": "Een feestdag aanpassen",
                 "data": {
                     "holiday": "Feestdag"
+                },
+                "data_description": {
+                    "holiday": "De gevolgde feestdag waarvan u de instellingen wilt wijzigen."
                 }
             },
             "customize_values": {
                 "title": "{holiday} aanpassen",
-                "description": "De getoonde waarden zijn de huidige effectieve instellingen van deze feestdag (zijn eigen aanpassing, of de standaardinstelling van de instantie). Vink 'Terugzetten naar standaard' aan om de aanpassing voor deze feestdag te verwijderen en terug te gaan naar de standaardinstellingen van de instantie - andere velden worden genegeerd als dit is aangevinkt. Een vriendelijke naam wijzigt alleen de weergavenaam - de reeds toegewezen entiteits-ID van deze feestdag wordt er niet door hernoemd; gebruik hiervoor de eigen instellingen van de entiteit.",
+                "description": "De getoonde waarden zijn de huidige effectieve instellingen van deze feestdag (zijn eigen aanpassing, of de standaardinstelling van de instantie). Vink 'Terugzetten naar standaard van instantie' aan om de aanpassing voor deze feestdag te verwijderen en terug te gaan naar de standaardinstellingen van de instantie - andere velden worden genegeerd als dit is aangevinkt. Een vriendelijke naam wijzigt alleen de weergavenaam - de reeds toegewezen entiteits-ID van deze feestdag wordt er niet door hernoemd; gebruik hiervoor de eigen instellingen van de entiteit.",
                 "data": {
                     "name": "Vriendelijke naam (laat leeg om de naam van de feestdag te gebruiken)",
                     "icon_normal": "Icoon",
@@ -88,8 +160,52 @@
                     "days_as_soon": "Aantal dagen waarvoor deze feestdag als 'binnenkort' wordt beschouwd",
                     "icon_soon": "Icoon wanneer deze feestdag binnenkort is",
                     "date_format": "Datumformaat (Python strftime-syntax)",
-                    "unit_of_measurement": "Tekst voor unit_of_measurement",
                     "reset_to_default": "Terugzetten naar standaard van instantie"
+                },
+                "data_description": {
+                    "name": "Een weergavenaam voor de sensor van deze feestdag. Laat leeg om de eigen naam van de feestdag te gebruiken. Dit wijzigt de entiteits-ID niet.",
+                    "icon_normal": "Icoon dat wordt getoond zolang de feestdag verder weg is dan de drempel voor 'binnenkort', bijvoorbeeld mdi:calendar-blank.",
+                    "icon_today": "Icoon dat op de dag van de feestdag wordt getoond.",
+                    "days_as_soon": "Een feestdag die zoveel dagen of minder weg is, geldt als 'binnenkort'.",
+                    "icon_soon": "Icoon dat wordt getoond zolang de feestdag 'binnenkort' is.",
+                    "date_format": "Hoe het datumattribuut wordt geschreven, met Python strftime-codes zoals %Y-%m-%d (zie strftime.org).",
+                    "reset_to_default": "Verwijder de aanpassingen van deze feestdag en gebruik de standaardinstellingen van de instantie. De andere velden worden genegeerd als dit is aangevinkt."
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "legacy_entry": {
+            "message": "Dit item is aangemaakt door een oudere versie van Calendarific en is niet meer compatibel. Verwijder het en voeg de integratie opnieuw toe"
+        },
+        "auth_failed": {
+            "message": "Calendarific heeft de API-sleutel geweigerd: {detail}"
+        },
+        "update_failed": {
+            "message": "Fout bij het ophalen van feestdagen van Calendarific: {detail}"
+        }
+    },
+    "entity": {
+        "sensor": {
+            "next_holiday": {
+                "name": "Volgende feestdag"
+            }
+        },
+        "calendar": {
+            "holidays": {
+                "name": "Feestdagen"
+            }
+        }
+    },
+    "issues": {
+        "holiday_missing": {
+            "title": "{holiday} staat niet meer in de lijst van {title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Stoppen met het volgen van {holiday}?",
+                        "description": "Calendarific vermeldt voor het land en de staat van deze instantie geen feestdag meer met de naam {holiday}, dus de sensor kan geen datum tonen. Bevestig om de feestdag uit de instantie te verwijderen. Als de feestdag een andere naam heeft gekregen, voegt u de nieuwe naam daarna toe via de opties van de instantie."
+                    }
                 }
             }
         }

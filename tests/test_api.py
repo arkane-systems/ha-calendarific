@@ -1,349 +1,355 @@
-"""Unit tests for the Calendarific API client and holiday cache (api.py).
+"""Unit tests for the Calendarific client and holiday data model (api.py)."""
 
-These exercise pure logic only, via monkeypatched requests.get/calendarificAPI.holidays -
-no network access and no homeassistant dependency required.
-"""
-import json
-from datetime import date, timedelta
+from __future__ import annotations
 
-import api
+import asyncio
+from collections.abc import AsyncGenerator
+from datetime import date
+from typing import Any
+from unittest.mock import patch
+
+from aiohttp import ClientConnectionError, ClientError, ClientSession
+import pytest
+from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
+
+from custom_components.calendarific.api import (
+    API_URL,
+    REQUEST_TIMEOUT,
+    CalendarificAuthError,
+    CalendarificClient,
+    CalendarificConnectionError,
+    CalendarificRateLimitError,
+    Holiday,
+    HolidayData,
+)
+
+from .common import make_holiday
+
+TODAY = date(2026, 10, 24)
 
 
-class FakeResponse:
-    def __init__(self, status_code, payload):
-        self.status_code = status_code
-        self.text = json.dumps(payload)
+def holiday(name: str, when: date, description: str = "A description.") -> Holiday:
+    return Holiday(name=name, description=description, day=when)
 
 
-def holiday(name, year, month, day, description="A description."):
-    return {
-        "name": name,
-        "description": description,
-        "date": {"datetime": {"year": year, "month": month, "day": day}},
+# -- CalendarificClient ---------------------------------------------------------
+
+
+@pytest.fixture
+async def session(aioclient_mock: AiohttpClientMocker) -> AsyncGenerator[ClientSession]:
+    client_session = aioclient_mock.create_session(asyncio.get_running_loop())
+    yield client_session
+    await client_session.close()
+
+
+@pytest.fixture
+def client(session: ClientSession) -> CalendarificClient:
+    return CalendarificClient(session, "secret-key")
+
+
+def ok_payload(*holidays: dict[str, Any]) -> dict[str, Any]:
+    return {"meta": {"code": 200}, "response": {"holidays": list(holidays)}}
+
+
+def error_payload(code: int, detail: str) -> dict[str, Any]:
+    return {"meta": {"code": code, "error_type": "x", "error_detail": detail}, "response": []}
+
+
+async def test_sends_key_country_year_and_location(
+    aioclient_mock: AiohttpClientMocker, client: CalendarificClient
+) -> None:
+    aioclient_mock.get(API_URL, json=ok_payload())
+
+    await client.async_get_holidays("US", 2026, "US-KS")
+
+    (_, url, _, _) = aioclient_mock.mock_calls[0]
+    assert dict(url.query) == {
+        "api_key": "secret-key",
+        "country": "US",
+        "year": "2026",
+        "location": "US-KS",
     }
 
 
-# -- calendarificAPI.holidays -------------------------------------------------
+async def test_requests_carry_a_timeout(
+    aioclient_mock: AiohttpClientMocker, session: ClientSession, client: CalendarificClient
+) -> None:
+    aioclient_mock.get(API_URL, json=ok_payload())
+
+    with patch.object(session, "get", wraps=session.get) as get:
+        await client.async_get_holidays("US", 2026)
+
+    assert get.call_args.kwargs["timeout"].total == REQUEST_TIMEOUT
 
 
-def test_holidays_injects_api_key_when_missing(monkeypatch):
-    captured = {}
-
-    def fake_get(url, params):
-        captured.update(params)
-        return FakeResponse(200, {"response": {"holidays": []}})
-
-    monkeypatch.setattr(api.requests, "get", fake_get)
-    api.calendarificAPI("secret-key").holidays({"country": "US"})
-    assert captured["api_key"] == "secret-key"
-
-
-def test_holidays_preserves_explicit_api_key(monkeypatch):
-    captured = {}
-
-    def fake_get(url, params):
-        captured.update(params)
-        return FakeResponse(200, {"response": {"holidays": []}})
-
-    monkeypatch.setattr(api.requests, "get", fake_get)
-    api.calendarificAPI("default-key").holidays({"country": "US", "api_key": "explicit-key"})
-    assert captured["api_key"] == "explicit-key"
-
-
-def test_holidays_synthesizes_error_on_non_200_without_error_field(monkeypatch):
-    monkeypatch.setattr(
-        api.requests, "get", lambda url, params: FakeResponse(500, {"meta": {"code": 500}})
+async def test_parses_holidays(
+    aioclient_mock: AiohttpClientMocker, client: CalendarificClient
+) -> None:
+    aioclient_mock.get(
+        API_URL,
+        json=ok_payload(
+            make_holiday("Christmas Day", date(2026, 12, 25), "Festival of lights."),
+            make_holiday("Halloween", date(2026, 10, 31)),
+        ),
     )
-    result = api.calendarificAPI("key").holidays({"country": "US"})
-    assert result["error"] == "Unknown error."
+
+    assert await client.async_get_holidays("US", 2026) == [
+        Holiday("Christmas Day", "Festival of lights.", date(2026, 12, 25)),
+        Holiday("Halloween", "Description of Halloween.", date(2026, 10, 31)),
+    ]
 
 
-def test_holidays_preserves_existing_error_field(monkeypatch):
-    monkeypatch.setattr(
-        api.requests,
-        "get",
-        lambda url, params: FakeResponse(401, {"error": "Invalid API key.", "meta": {"code": 401}}),
+async def test_missing_description_becomes_empty(
+    aioclient_mock: AiohttpClientMocker, client: CalendarificClient
+) -> None:
+    item = make_holiday("Halloween", date(2026, 10, 31))
+    del item["description"]
+    aioclient_mock.get(API_URL, json=ok_payload(item))
+
+    [parsed] = await client.async_get_holidays("US", 2026)
+    assert parsed.description == ""
+
+
+@pytest.mark.parametrize("status", [401, 403])
+async def test_auth_statuses_raise_auth_error_with_detail(
+    aioclient_mock: AiohttpClientMocker, client: CalendarificClient, status: int
+) -> None:
+    aioclient_mock.get(API_URL, status=status, json=error_payload(status, "Bad key."))
+
+    with pytest.raises(CalendarificAuthError, match="Bad key."):
+        await client.async_get_holidays("US", 2026)
+
+
+async def test_auth_error_without_a_json_body(
+    aioclient_mock: AiohttpClientMocker, client: CalendarificClient
+) -> None:
+    aioclient_mock.get(API_URL, status=401, text="<html>Unauthorized</html>")
+
+    with pytest.raises(CalendarificAuthError):
+        await client.async_get_holidays("US", 2026)
+
+
+async def test_error_code_inside_a_200_response_is_honoured(
+    aioclient_mock: AiohttpClientMocker, client: CalendarificClient
+) -> None:
+    aioclient_mock.get(API_URL, json=error_payload(401, "Bad key."))
+
+    with pytest.raises(CalendarificAuthError):
+        await client.async_get_holidays("US", 2026)
+
+
+async def test_rate_limit(aioclient_mock: AiohttpClientMocker, client: CalendarificClient) -> None:
+    aioclient_mock.get(API_URL, status=429, json=error_payload(429, "Limit reached."))
+
+    with pytest.raises(CalendarificRateLimitError, match="Limit reached."):
+        await client.async_get_holidays("US", 2026)
+
+
+@pytest.mark.parametrize("status", [500, 503])
+async def test_server_errors_are_connection_errors(
+    aioclient_mock: AiohttpClientMocker, client: CalendarificClient, status: int
+) -> None:
+    aioclient_mock.get(API_URL, status=status, json=error_payload(status, "Down."))
+
+    with pytest.raises(CalendarificConnectionError, match="Down."):
+        await client.async_get_holidays("US", 2026)
+
+
+async def test_unexpected_status_without_detail(
+    aioclient_mock: AiohttpClientMocker, client: CalendarificClient
+) -> None:
+    aioclient_mock.get(API_URL, status=418, text="")
+
+    with pytest.raises(CalendarificConnectionError, match="HTTP 418"):
+        await client.async_get_holidays("US", 2026)
+
+
+@pytest.mark.parametrize(
+    "body",
+    ["not json", "[]", '{"response": {}}', '{"response": {"holidays": [{"name": "x"}]}}'],
+)
+async def test_malformed_success_bodies_are_connection_errors(
+    aioclient_mock: AiohttpClientMocker, client: CalendarificClient, body: str
+) -> None:
+    aioclient_mock.get(API_URL, text=body)
+
+    with pytest.raises(CalendarificConnectionError, match="Unexpected response"):
+        await client.async_get_holidays("US", 2026)
+
+
+async def test_impossible_date_is_a_connection_error(
+    aioclient_mock: AiohttpClientMocker, client: CalendarificClient
+) -> None:
+    item = make_holiday("Halloween", date(2026, 10, 31))
+    item["date"]["datetime"]["month"] = 13
+    aioclient_mock.get(API_URL, json=ok_payload(item))
+
+    with pytest.raises(CalendarificConnectionError):
+        await client.async_get_holidays("US", 2026)
+
+
+@pytest.mark.parametrize("exc", [TimeoutError(), ClientConnectionError(), ClientError()])
+async def test_network_failures_are_connection_errors(
+    aioclient_mock: AiohttpClientMocker, client: CalendarificClient, exc: Exception
+) -> None:
+    aioclient_mock.get(API_URL, exc=exc)
+
+    with pytest.raises(CalendarificConnectionError):
+        await client.async_get_holidays("US", 2026)
+
+
+async def test_error_messages_never_contain_the_api_key(
+    aioclient_mock: AiohttpClientMocker, client: CalendarificClient
+) -> None:
+    aioclient_mock.get(API_URL, exc=ClientError(f"{API_URL}?api_key=secret-key failed"))
+
+    with pytest.raises(CalendarificConnectionError) as excinfo:
+        await client.async_get_holidays("US", 2026)
+
+    assert "secret-key" not in str(excinfo.value)
+
+
+# -- HolidayData.next_occurrence ------------------------------------------------
+
+
+def data(**years: list[Holiday]) -> HolidayData:
+    return HolidayData.from_lists({int(year[1:]): items for year, items in years.items()})
+
+
+def test_next_occurrence_upcoming_this_year() -> None:
+    result = data(y2026=[holiday("Test Day", date(2026, 11, 3))]).next_occurrence(
+        "Test Day", TODAY
     )
-    result = api.calendarificAPI("bad-key").holidays({"country": "US"})
-    assert result["error"] == "Invalid API key."
+    assert result is not None
+    assert result.day == date(2026, 11, 3)
 
 
-# -- fetch_holiday_names -------------------------------------------------------
+def test_next_occurrence_includes_today() -> None:
+    result = data(y2026=[holiday("Test Day", TODAY)]).next_occurrence("Test Day", TODAY)
+    assert result is not None
+    assert result.day == TODAY
 
 
-def test_fetch_holiday_names_returns_names(monkeypatch):
-    def fake_holidays(self, parameters):
-        return {"response": {"holidays": [{"name": "New Year's Day"}, {"name": "Christmas Day"}]}}
-
-    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
-    assert api.fetch_holiday_names("key", "US", "") == ["New Year's Day", "Christmas Day"]
-
-
-def test_fetch_holiday_names_returns_empty_on_error(monkeypatch):
-    monkeypatch.setattr(
-        api.calendarificAPI, "holidays", lambda self, parameters: {"error": "Invalid API key."}
+def test_next_occurrence_rolls_over_to_next_year_once_passed() -> None:
+    holidays = data(
+        y2026=[holiday("Test Day", date(2026, 7, 4))],
+        y2027=[holiday("Test Day", date(2027, 7, 4))],
     )
-    assert api.fetch_holiday_names("bad-key", "US", "") == []
+    result = holidays.next_occurrence("Test Day", TODAY)
+    assert result is not None
+    assert result.day == date(2027, 7, 4)
 
 
-# -- CalendarificApiReader.get_date -------------------------------------------
+def test_next_occurrence_unknown_when_passed_and_not_repeated() -> None:
+    holidays = data(y2026=[holiday("Test Day", date(2026, 7, 4))], y2027=[])
+    assert holidays.next_occurrence("Test Day", TODAY) is None
 
 
-def test_get_date_returns_current_year_date_when_upcoming(monkeypatch):
-    today = date.today()
-    future = today + timedelta(days=10)
-
-    def fake_holidays(self, parameters):
-        if parameters["year"] == today.year:
-            return {"response": {"holidays": [holiday("Test Day", future.year, future.month, future.day)]}}
-        return {"response": {"holidays": []}}
-
-    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
-    reader = api.CalendarificApiReader("key", "US", "")
-    assert reader.get_date("Test Day") == future
+def test_next_occurrence_finds_a_holiday_that_only_exists_next_year() -> None:
+    holidays = data(y2026=[], y2027=[holiday("Inauguration Day", date(2027, 1, 20))])
+    result = holidays.next_occurrence("Inauguration Day", TODAY)
+    assert result is not None
+    assert result.day == date(2027, 1, 20)
 
 
-def test_get_date_returns_today_when_holiday_is_today(monkeypatch):
-    today = date.today()
-
-    def fake_holidays(self, parameters):
-        if parameters["year"] == today.year:
-            return {"response": {"holidays": [holiday("Test Day", today.year, today.month, today.day)]}}
-        return {"response": {"holidays": []}}
-
-    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
-    reader = api.CalendarificApiReader("key", "US", "")
-    assert reader.get_date("Test Day") == today
+def test_next_occurrence_unknown_name() -> None:
+    assert data(y2026=[]).next_occurrence("Nonexistent", TODAY) is None
 
 
-def test_get_date_rolls_over_to_next_year_when_passed(monkeypatch):
-    today = date.today()
-    past = today - timedelta(days=5)
-    next_occurrence = date(today.year + 1, past.month, past.day)
-
-    def fake_holidays(self, parameters):
-        if parameters["year"] == today.year:
-            return {"response": {"holidays": [holiday("Test Day", past.year, past.month, past.day)]}}
-        return {
-            "response": {
-                "holidays": [
-                    holiday("Test Day", next_occurrence.year, next_occurrence.month, next_occurrence.day)
-                ]
-            }
-        }
-
-    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
-    reader = api.CalendarificApiReader("key", "US", "")
-    assert reader.get_date("Test Day") == next_occurrence
-
-
-def test_get_date_returns_placeholder_when_not_found(monkeypatch):
-    monkeypatch.setattr(
-        api.calendarificAPI, "holidays", lambda self, parameters: {"response": {"holidays": []}}
+def test_next_occurrence_uses_the_supplied_today_not_the_system_clock() -> None:
+    # Regression: sensors once rolled over at system-clock midnight (often UTC)
+    # rather than Home Assistant's configured local midnight.
+    holidays = data(
+        y2026=[holiday("Test Day", date(2026, 6, 15))],
+        y2027=[holiday("Test Day", date(2027, 6, 15))],
     )
-    reader = api.CalendarificApiReader("key", "US", "")
-    assert reader.get_date("Nonexistent") == "-"
+    before = holidays.next_occurrence("Test Day", date(2026, 6, 15))
+    after = holidays.next_occurrence("Test Day", date(2026, 6, 16))
+    assert before is not None and before.day == date(2026, 6, 15)
+    assert after is not None and after.day == date(2027, 6, 15)
 
 
-def test_get_date_returns_placeholder_when_passed_and_missing_next_year(monkeypatch):
-    today = date.today()
-    past = today - timedelta(days=5)
-
-    def fake_holidays(self, parameters):
-        if parameters["year"] == today.year:
-            return {"response": {"holidays": [holiday("Test Day", past.year, past.month, past.day)]}}
-        return {"response": {"holidays": []}}
-
-    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
-    reader = api.CalendarificApiReader("key", "US", "")
-    assert reader.get_date("Test Day") == "-"
-
-
-def test_get_date_uses_explicit_today_over_system_clock(monkeypatch):
-    # Regression test: sensors were rolling over at system-clock midnight
-    # (often UTC) instead of HA's configured local midnight, because get_date()
-    # used to always compute "today" itself via date.today(). Callers must be
-    # able to override it, and get_date() must actually use what's passed.
-    class FakeDate(date):
-        @classmethod
-        def today(cls):
-            return date(2026, 1, 1)  # system clock claims it's still January
-
-    monkeypatch.setattr(api, "date", FakeDate)
-
-    def fake_holidays(self, parameters):
-        if parameters["year"] == 2026:
-            return {"response": {"holidays": [holiday("Test Day", 2026, 6, 15)]}}
-        return {"response": {"holidays": [holiday("Test Day", 2027, 6, 15)]}}
-
-    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
-    reader = api.CalendarificApiReader("key", "US", "", today=date(2026, 1, 1))
-
-    # An explicit "today" of Dec 31 is well after the June holiday, so it
-    # must roll over to next year's occurrence - even though the (faked)
-    # system clock still thinks it's January and the holiday hasn't passed.
-    assert reader.get_date("Test Day", today=date(2026, 12, 31)) == date(2027, 6, 15)
-
-
-# -- CalendarificApiReader.get_next_holiday -----------------------------------
-
-
-def test_get_next_holiday_returns_soonest(monkeypatch):
-    today = date.today()
-    soon = today + timedelta(days=5)
-    later = today + timedelta(days=20)
-
-    def fake_holidays(self, parameters):
-        if parameters["year"] == today.year:
-            return {
-                "response": {
-                    "holidays": [
-                        holiday("Later Day", later.year, later.month, later.day),
-                        holiday("Soon Day", soon.year, soon.month, soon.day),
-                    ]
-                }
-            }
-        return {"response": {"holidays": []}}
-
-    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
-    reader = api.CalendarificApiReader("key", "US", "")
-    assert reader.get_next_holiday(["Later Day", "Soon Day"], today) == ("Soon Day", soon)
-
-
-def test_get_next_holiday_breaks_date_ties_on_name(monkeypatch):
-    today = date.today()
-    same_day = today + timedelta(days=5)
-
-    def fake_holidays(self, parameters):
-        if parameters["year"] == today.year:
-            return {
-                "response": {
-                    "holidays": [
-                        holiday("Zebra Day", same_day.year, same_day.month, same_day.day),
-                        holiday("Apple Day", same_day.year, same_day.month, same_day.day),
-                    ]
-                }
-            }
-        return {"response": {"holidays": []}}
-
-    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
-    reader = api.CalendarificApiReader("key", "US", "")
-    assert reader.get_next_holiday(["Zebra Day", "Apple Day"], today) == ("Apple Day", same_day)
-
-
-def test_get_next_holiday_skips_names_not_found(monkeypatch):
-    today = date.today()
-    soon = today + timedelta(days=5)
-
-    def fake_holidays(self, parameters):
-        if parameters["year"] == today.year:
-            return {"response": {"holidays": [holiday("Soon Day", soon.year, soon.month, soon.day)]}}
-        return {"response": {"holidays": []}}
-
-    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
-    reader = api.CalendarificApiReader("key", "US", "")
-    assert reader.get_next_holiday(["Nonexistent", "Soon Day"], today) == ("Soon Day", soon)
-
-
-def test_get_next_holiday_returns_none_when_no_candidates(monkeypatch):
-    monkeypatch.setattr(
-        api.calendarificAPI, "holidays", lambda self, parameters: {"response": {"holidays": []}}
+def test_first_of_duplicate_names_wins() -> None:
+    holidays = data(
+        y2026=[
+            holiday("Test Day", date(2026, 11, 1), "first"),
+            holiday("Test Day", date(2026, 11, 2), "second"),
+        ]
     )
-    reader = api.CalendarificApiReader("key", "US", "")
-    assert reader.get_next_holiday(["Nonexistent"]) == (None, None)
-    assert reader.get_next_holiday([]) == (None, None)
+    result = holidays.next_occurrence("Test Day", TODAY)
+    assert result is not None
+    assert result.description == "first"
 
 
-# -- CalendarificApiReader.get_description / get_holidays ---------------------
+def test_covers() -> None:
+    holidays = data(y2026=[], y2027=[])
+    assert holidays.covers(date(2026, 1, 1))
+    assert holidays.covers(date(2027, 12, 31))
+    assert not holidays.covers(date(2028, 1, 1))
 
 
-def test_get_description_found(monkeypatch):
-    def fake_holidays(self, parameters):
-        if parameters["year"] == date.today().year:
-            return {"response": {"holidays": [holiday("Test Day", 2000, 1, 1, description="Some description.")]}}
-        return {"response": {"holidays": []}}
-
-    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
-    reader = api.CalendarificApiReader("key", "US", "")
-    assert reader.get_description("Test Day") == "Some description."
+# -- HolidayData.next_holiday ---------------------------------------------------
 
 
-def test_get_description_not_found(monkeypatch):
-    monkeypatch.setattr(
-        api.calendarificAPI, "holidays", lambda self, parameters: {"response": {"holidays": []}}
+def test_next_holiday_returns_the_soonest() -> None:
+    holidays = data(
+        y2026=[
+            holiday("Later Day", date(2026, 11, 20)),
+            holiday("Soon Day", date(2026, 10, 29)),
+        ]
     )
-    reader = api.CalendarificApiReader("key", "US", "")
-    assert reader.get_description("Nonexistent") == "NOT FOUND"
+    result = holidays.next_holiday(["Later Day", "Soon Day"], TODAY)
+    assert result is not None
+    assert result.name == "Soon Day"
 
 
-def test_get_holidays_lists_current_year_names_only(monkeypatch):
-    def fake_holidays(self, parameters):
-        if parameters["year"] == date.today().year:
-            return {"response": {"holidays": [holiday("A", 2000, 1, 1), holiday("B", 2000, 1, 2)]}}
-        return {"response": {"holidays": [holiday("C", 2001, 1, 1)]}}
-
-    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
-    reader = api.CalendarificApiReader("key", "US", "")
-    assert reader.get_holidays() == ["A", "B"]
+def test_next_holiday_breaks_date_ties_on_name() -> None:
+    same_day = date(2026, 10, 29)
+    holidays = data(y2026=[holiday("Zebra Day", same_day), holiday("Apple Day", same_day)])
+    result = holidays.next_holiday(["Zebra Day", "Apple Day"], TODAY)
+    assert result is not None
+    assert result.name == "Apple Day"
 
 
-# -- CalendarificApiReader.update ---------------------------------------------
+def test_next_holiday_skips_unknown_names() -> None:
+    holidays = data(y2026=[holiday("Soon Day", date(2026, 10, 29))])
+    result = holidays.next_holiday(["Nonexistent", "Soon Day"], TODAY)
+    assert result is not None
+    assert result.name == "Soon Day"
 
 
-def test_update_only_fetches_once_per_day(monkeypatch):
-    calls = []
-
-    def fake_holidays(self, parameters):
-        calls.append(parameters["year"])
-        return {"response": {"holidays": []}}
-
-    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
-    reader = api.CalendarificApiReader("key", "US", "")  # __init__ triggers the first update()
-    assert len(calls) == 2  # current year + next year
-
-    reader.update()  # same day - should be a no-op
-    assert len(calls) == 2
+def test_next_holiday_none_without_candidates() -> None:
+    holidays = data(y2026=[])
+    assert holidays.next_holiday(["Nonexistent"], TODAY) is None
+    assert holidays.next_holiday([], TODAY) is None
 
 
-def test_update_stops_and_logs_once_on_current_year_error(monkeypatch):
-    calls = []
-
-    def fake_holidays(self, parameters):
-        calls.append(parameters["year"])
-        return {"error": "Invalid API key.", "meta": {"error_detail": "Invalid API key."}}
-
-    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
-    reader = api.CalendarificApiReader("bad-key", "US", "")
-
-    assert calls == [date.today().year]  # next year never requested
-    assert reader._error_logged is True
-    assert reader.get_holidays() == []
+# -- HolidayData.occurrences ----------------------------------------------------
 
 
-def test_update_uses_explicit_today_over_system_clock(monkeypatch):
-    # Regression test: the daily-refresh gate used to compare against
-    # datetime.now().date() (system clock) rather than a caller-supplied
-    # "today", so it could fetch a different year - or skip a needed refetch -
-    # at the wrong wall-clock time relative to HA's configured local day.
-    class FakeDate(date):
-        @classmethod
-        def today(cls):
-            return date(2020, 1, 1)  # system clock is way off from the explicit "today" below
+def test_occurrences_filters_by_range_and_name_and_sorts() -> None:
+    holidays = data(
+        y2026=[
+            holiday("Christmas Day", date(2026, 12, 25)),
+            holiday("Halloween", date(2026, 10, 31)),
+            holiday("Independence Day", date(2026, 7, 4)),
+        ]
+    )
+    found = holidays.occurrences(
+        ["Christmas Day", "Halloween"], date(2026, 7, 1), date(2026, 12, 31)
+    )
+    assert [h.name for h in found] == ["Halloween", "Christmas Day"]
 
-    monkeypatch.setattr(api, "date", FakeDate)
 
-    calls = []
+def test_occurrences_spans_years_and_includes_both_ends() -> None:
+    holidays = data(
+        y2026=[holiday("New Year", date(2026, 12, 31))],
+        y2027=[holiday("New Year", date(2027, 1, 1))],
+    )
+    found = holidays.occurrences(["New Year"], date(2026, 12, 31), date(2027, 1, 1))
+    assert [h.day for h in found] == [date(2026, 12, 31), date(2027, 1, 1)]
 
-    def fake_holidays(self, parameters):
-        calls.append(parameters["year"])
-        return {"response": {"holidays": []}}
 
-    monkeypatch.setattr(api.calendarificAPI, "holidays", fake_holidays)
-    reader = api.CalendarificApiReader("key", "US", "", today=date(2026, 9, 20))
-    assert calls == [2026, 2027]  # year comes from the explicit "today", not the system clock
-
-    reader.update(date(2026, 9, 20))  # same explicit day - still a no-op
-    assert len(calls) == 2
-
-    reader.update(date(2026, 9, 21))  # a new explicit day - refetches, system clock notwithstanding
-    assert len(calls) == 4
+def test_occurrences_ignores_years_without_data() -> None:
+    holidays = data(y2026=[holiday("Halloween", date(2026, 10, 31))])
+    assert holidays.occurrences(["Halloween"], date(2030, 1, 1), date(2030, 12, 31)) == []

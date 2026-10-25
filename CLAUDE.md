@@ -10,7 +10,20 @@ This is a Home Assistant custom integration (distributed via HACS) that creates 
 
 ## Validation / commands
 
-There is no local test suite and no lint/build step. Integration correctness is validated by Home Assistant's `hassfest` tool via GitHub Actions (`.github/workflows/hassfest.yaml`), which runs on every push and PR. To validate locally, use the official HA hassfest Docker image, or push to a branch and check the workflow result.
+There is no build step. Integration correctness is validated by Home Assistant's `hassfest` tool via GitHub Actions (`.github/workflows/hassfest.yaml`) and by the pytest suite (`.github/workflows/tests.yaml`), both on every push and PR. To run hassfest locally, use the official HA hassfest Docker image, or push to a branch and check the workflow result.
+
+```sh
+python3.13 -m venv .venv && source .venv/bin/activate
+pip install -r requirements_test.txt
+pytest --cov=custom_components.calendarific --cov-report=term-missing --cov-fail-under=95
+mypy
+```
+
+CI (`tests.yaml`) runs exactly those two commands: the suite with a 95% coverage floor (currently 100% of every module) and `mypy` in strict mode over both `custom_components/` and `tests/` (config in `mypy.ini`, mirroring core's strict settings; `py.typed` marks the package as typed). Keep both green. A third job, `test-latest`, installs the newest `pytest-homeassistant-custom-component` unpinned on Python 3.14 and runs the suite against whatever Home Assistant that brings. It is informational (`continue-on-error`), because the newest Home Assistant can break us with no change of ours, and a weekly scheduled run (Mondays) tests new Home Assistant releases without a push; the pinned `test` and `mypy` jobs skip the scheduled run. When `test-latest` fails, look at the Home Assistant version it printed and fix the test or the integration; if the cause is Home Assistant's own behavior change, record it here (as with the 2026.10 naming change under Entity naming).
+
+Tests use `pytest-homeassistant-custom-component` to run a real in-memory Home Assistant. `tests/conftest.py` provides `fake_api` (replaces the HTTP layer with canned holiday data and records calls) and `frozen_today` (freezes time at 2026-10-24); `tests/common.py` has the entry/sensor helpers. Always look entities up by unique ID suffix (`entity_id_for`, `sensor_id`) rather than hard-coding entity IDs.
+
+The integration is held to the Platinum tier of the HA integration quality scale as a self-imposed yardstick (HA doesn't grade custom integrations). Every rule is met or exempt, with the rationale for each exemption, in `custom_components/calendarific/quality_scale.yaml`; keep it current when behavior changes, and don't let a change regress a rule (for example, new user-facing strings need `strings.json`, `en.json` and `data_description` entries, which `tests/test_translations.py` enforces).
 
 ## Architecture
 
@@ -18,43 +31,61 @@ There is no local test suite and no lint/build step. Integration correctness is 
 
 ### Instances
 
-A config entry represents one **instance**: one `api_key` + `country` + `state` combination, tracking any number of holidays. Multiple instances can coexist side by side (e.g. one for US/US-KS, one for GB), each fully independent with its own API reader, device, and calendar. This is what makes multi-country/region setups and correct device grouping possible — grouping and scoping are keyed off `entry.entry_id`, not any shared global state.
+A config entry represents one **instance**: one `api_key` + `country` + `state` combination, tracking any number of holidays. Multiple instances can coexist side by side (e.g. one for US/US-KS, one for GB), each fully independent with its own coordinator, device, and calendar. This is what makes multi-country/region setups and correct device grouping possible — grouping and scoping are keyed off `entry.entry_id`, not any shared global state.
 
 ### Data flow
 
 ```
 __init__.py: async_setup_entry(entry)
-  └─ creates one CalendarificApiReader (api.py) for this entry's api_key/country/state
-       └─ fetches current-year AND next-year holidays from calendarific.com API
-       └─ stores it at hass.data[DOMAIN][entry.entry_id]["apiReader"]
+  └─ creates one CalendarificCoordinator (coordinator.py) for this entry's api_key/country/state
+       └─ first refresh fetches current-year AND next-year holidays via CalendarificClient (api.py),
+          using HA's shared aiohttp session; stored as entry.runtime_data
        └─ forwards to sensor.py AND calendar.py platforms for this entry
-            ├─ sensor.py: one `calendarific` entity per holiday in entry.options["holidays"]
-            └─ calendar.py: one `CalendarificCalendar` entity for this entry,
-                             aggregating that entry's own sensor entities
+            ├─ sensor.py: one HolidaySensor per holiday in entry.options["holidays"], plus one NextHolidaySensor
+            └─ calendar.py: one CalendarificCalendar for this entry
 ```
 
-### `hass.data[DOMAIN]` structure
+Entities (all `CalendarificEntity` subclasses, entity.py) never fetch anything: they derive their state from `coordinator.data` (a `HolidayData` snapshot) and today's date each time HA writes their state.
 
-Keyed by config entry, not flat domain-wide:
+### Coordinator behavior
 
-```python
-hass.data[DOMAIN] = {
-    entry.entry_id: {
-        "apiReader": CalendarificApiReader,  # this instance's reader
-        "sensor": {entity_id: calendarific}, # this instance's sensor entities
-    },
-    ...  # one such block per instance/config entry
-}
-```
+- `entry.runtime_data` is the `CalendarificCoordinator`; `CalendarificConfigEntry` (coordinator.py) is the typed alias. There is no `hass.data[DOMAIN]`.
+- It refetches once a day (`REFRESH_INTERVAL`). The coordinator, not the entities, owns a local-midnight timer that calls `async_update_listeners()` so day counts roll over with no API call, and also requests a refresh when the year changes (the cache holds today's year and the next).
+- **Outages:** a failed refresh keeps serving the cached data for as long as it still covers today's year (the cache holds two years), logging one warning and one recovery message, and retries every `RETRY_INTERVAL`. Failed requests count against Calendarific's monthly quota (500 on the free plan), so the retry is deliberately slow and a failed first-year request skips the second. When the cache no longer covers today, `UpdateFailed` makes the entities unavailable.
+- `CalendarificAuthError` (HTTP 401/403) raises `ConfigEntryAuthFailed`, which starts the reauth flow in `config_flow.py`. Other API errors during first setup raise `ConfigEntryNotReady`.
 
 ### Config entry shape
 
-- `entry.data` – connection-level, set once at creation: `api_key`, `country`, `state`.
-- `entry.options["defaults"]` – a single `{icon_normal, icon_today, icon_soon, days_as_soon, date_format, unit_of_measurement}` dict applied to every holiday in this instance unless overridden. Always fully populated (the config flow's `defaults` step and the options flow's `defaults` step both submit all six fields).
+- `entry.data` – connection-level: `api_key`, `country`, `state`. Changed only by the reauth and reconfigure flows.
+- `entry.unique_id` – `helpers.instance_unique_id(country, state)` (lower-case, e.g. `us-ks`), so each place can be added once. The config entry schema is version 1, minor 3 (`CONFIG_ENTRY_*` in `const.py`); `async_migrate_entry` in `__init__.py` gave older entries their ID (leaving a pre-existing duplicate without one rather than refusing to load it) and stripped the removed `unit_of_measurement` key from `defaults` and every holiday override.
+- `entry.options["defaults"]` – a single `{icon_normal, icon_today, icon_soon, days_as_soon, date_format}` dict applied to every holiday in this instance unless overridden. Always fully populated (the config flow's `defaults` step and the options flow's `defaults` step both submit all five fields). The unit is not configurable: holiday sensors are `SensorDeviceClass.DURATION` in `UnitOfTime.DAYS`.
 - `entry.options["holidays"]` – `{holiday_name: {...}}`, the set of holidays this instance tracks. Each value is a **sparse override dict** holding only the settings that differ from `entry.options["defaults"]` for that holiday — `{}` for a holiday with no customization. It can also hold a `name` key (a custom friendly name); `name` is per-holiday only, never part of `entry.options["defaults"]`, since a shared custom name across every holiday in an instance wouldn't make sense. `sensor.py`'s `async_setup_entry` resolves the effective per-holiday settings by merging `{**defaults, **override}` once, at entity-construction time (entities are always rebuilt on reload, so this doesn't need to be dynamic).
-- Both are mutable via `CalendarificOptionsFlowHandler`, whose `async_step_init` is an action picker routing to: `async_step_holidays` (add/remove tracked holidays — removing one discards its override), `async_step_defaults` (edit the instance defaults), or `async_step_customize`/`async_step_customize_values` (pick one holiday, then set its override — submitting a value that matches the instance default is treated as "not overridden" and dropped from the override dict; a blank `name` is likewise treated as "not overridden" rather than compared against an instance default, since there isn't one; checking "reset to default" clears the override outright regardless of the other fields). Changing options triggers `async_update_options` → `hass.config_entries.async_reload(entry.entry_id)`.
+- Both are mutable via `CalendarificOptionsFlowHandler`, whose `async_step_init` is an action picker routing to: `async_step_holidays` (add/remove tracked holidays — removing one discards its override), `async_step_defaults` (edit the instance defaults), or `async_step_customize`/`async_step_customize_values` (pick one holiday, then set its override — submitting a value that matches the instance default is treated as "not overridden" and dropped from the override dict; a blank `name` is likewise treated as "not overridden" rather than compared against an instance default, since there isn't one; checking "reset to default" clears the override outright regardless of the other fields). `CalendarificOptionsFlowHandler` is an `OptionsFlowWithReload`, so saving options reloads the entry; HA forbids registering an update listener alongside it, so renaming an instance does not reload it (the device and calendar names are only read when entities are created).
 - A custom `name` only changes the entity's displayed friendly name. It does **not** retroactively rename the entity's `entity_id` — HA assigns `entity_id` once, from the friendly name at first creation, and never auto-renames it afterward. This is standard HA behavior, not something specific to this integration.
 - Every options-flow step that persists a change spreads the existing `config_entry.options` and overwrites only its own key (`{**self.config_entry.options, CONF_HOLIDAYS: holidays}`) — `async_create_entry` in an options flow *replaces* `options` wholesale rather than merging, so omitting this would silently wipe the other key.
+
+### Config flow
+
+- **Setup:** `user` (key, country, state) → `defaults` → `holidays`. The unique ID is set and checked first, so a duplicate is rejected before any API request is spent. Errors are classified by `_error_key`: `invalid_auth`, `rate_limited`, `cannot_connect`, plus `no_holidays_found`.
+- **Reauth:** started by `ConfigEntryAuthFailed`; asks for a new key and verifies it before saving.
+- **Reconfigure:** `reconfigure` edits key, country and state. If the place is unchanged it just updates the entry; otherwise `reconfigure_holidays` re-picks holidays (those still on offer pre-selected, their overrides kept), the unique ID updates, and the title follows the place only if it was still the generated default. It does its own conflict check against other entries because `_abort_if_unique_id_configured` would match the entry being reconfigured. Dropped holidays' entities are removed by the stale-entity sweep at the next setup.
+- **Options:** a translated menu (`init`) leading to `holidays`, `defaults` and `customize`/`customize_values`.
+
+### Entity naming
+
+- **Holiday sensors** have `has_entity_name = False` and register under the holiday's own name (or its custom name): the registry's `original_name` is "Christmas Day". This is the deliberate `has-entity-name` exemption in `quality_scale.yaml`: the names come from API data, so they are neither prefixed by us nor translatable.
+- **Next Holiday and the calendar** have `has_entity_name = True`. Next Holiday uses `translation_key = "next_holiday"`, giving "<instance> Next holiday", which tells several instances apart; the calendar has `name = None`, so it takes the device's name. Entity names only translate when `has_entity_name` is True, which is why the holiday sensors can't.
+- **The Home Assistant version changes the ID and, without our help, the `friendly_name` of a holiday sensor.** Verified on 2026.2.3 both are plain (`sensor.christmas_day`, "Christmas Day"). Verified on 2026.10.3 (the releases between are untested), Home Assistant builds the state's `friendly_name` as "<device name> <entity name>" for every entity with a device, via `async_get_legacy_friendly_name` (the long-announced end of the legacy `has_entity_name = False` style), and puts the device name in new entity IDs too. There is no supported opt-out. The registry's `original_name` stays plain, which is what the frontend displays.
+- **`names.py` keeps the friendly name plain.** A registry `name` (what a user rename sets) is used verbatim by the legacy friendly name, so after the platforms load `async_apply_plain_names` stores each holiday's display name there. That leaves the prefixed entity ID untouched and is a no-op on older releases. Rules: write only when the registry name is empty (new entity, upgrade from 0.16, a reset in the UI) or still equals the `original_name` captured *before* the platforms loaded (a name we wrote earlier, so a changed custom name follows through); never overwrite anything else, because that is the user's own rename. If a future Home Assistant starts prefixing even registry names the workaround silently stops working and names fall back to prefixed; the tests would catch it.
+- Next Holiday and the calendar use `has_entity_name = True` and are "<device name> <name>" on both versions, by design.
+- `icons.json` covers the two fixed entities. Holiday sensors keep the user-configurable `icon` property (the three icon settings are deliberate).
+- **Test against more than one Home Assistant version when the behavior under test is Home Assistant's own** (naming, registry, flows): `requirements_test.txt` pins the harness for 2026.2.3, and the suite also passes on 2026.10.x with a scratch environment (`pip install pytest-homeassistant-custom-component` on Python 3.14). Never assert a holiday sensor's literal entity ID (it differs by version); look entities up by unique ID.
+
+### Repairs, stale entities and diagnostics
+
+- **Stale entities:** `__init__._async_remove_stale_entities` runs on every setup and deletes registry entries whose unique ID is not one of this instance's expected IDs (`helpers.holiday_unique_id` and friends), so deselecting a holiday removes its sensor.
+- **Repair issue `holiday_missing`:** after every successful fetch the coordinator calls `issues.async_sync_missing_holiday_issues`, which raises one fixable issue per tracked holiday that no fetched year lists (`HolidayData.knows`) and clears resolved ones. A holiday that is listed but has no upcoming date is *not* an issue. Outages neither raise nor clear issues. `repairs.py` provides the fix flow (stop tracking the holiday and reload); `async_remove_entry` clears an instance's issues.
+- **Diagnostics:** `diagnostics.py` redacts the API key and reports the entry, coordinator state, cache size per year and each tracked holiday's next date. Country and state are deliberately not redacted.
 
 ### Device and calendar grouping
 
@@ -62,9 +93,9 @@ hass.data[DOMAIN] = {
 
 ### Holiday date logic
 
-`CalendarificApiReader` fetches both the **current year** and **next year** holiday lists. `get_date()` checks whether a holiday has already passed this year and, if so, returns next year's date. Sensor state is an integer (days remaining) or `"unknown"` when the holiday is not found in the API response.
+`HolidayData` (api.py) is an immutable snapshot of the holidays for the fetched years, indexed by name (the first of any duplicate names in a year wins). `next_occurrence(name, today)` returns the first occurrence on or after today, looking through this year's list and then next year's, so a holiday that has passed rolls over to next year's date and one that exists only next year is still found. `next_holiday()` picks the soonest of several (ties break on name) and `occurrences()` serves the calendar's date ranges. A holiday that isn't found gives a sensor state of `None` (shown as unknown).
 
-`get_date()` and `update()` take "today" as an optional `today=` parameter rather than computing it internally via `date.today()`/`datetime.now()`. `api.py` has no `homeassistant` dependency by design (see below), so it can't call `homeassistant.util.dt` itself; its HA-aware callers (`sensor.py`, `__init__.py`) pass in `dt_util.now().date()` explicitly. Do not let `api.py` fall back to the bare system clock in an HA-aware code path — the host's OS timezone (frequently UTC in containers/HAOS) is not necessarily HA's *configured* timezone, and comparing against it rolls "today" over at the wrong wall-clock time relative to the user's local midnight. The `today=None` fallback to `date.today()` only exists for standalone/test use outside HA.
+"Today" is always passed in rather than read from the system clock. `api.py` has no `homeassistant` dependency by design (see below), so it can't call `homeassistant.util.dt` itself; `CalendarificEntity._today()` and the coordinator use `dt_util.now().date()`. Do not let `api.py` fall back to the bare system clock — the host's OS timezone (frequently UTC in containers/HAOS) is not necessarily HA's *configured* timezone, and comparing against it rolls "today" over at the wrong wall-clock time relative to the user's local midnight.
 
 ### Sensor icon states
 
@@ -77,11 +108,11 @@ Icon switches based on the `days_as_soon` threshold:
 
 - **Constants in `const.py`** – all domain-level constants, config keys, defaults, and platform names are defined here. Import from `const.py` rather than repeating string literals.
 - **Version bumps are manual.** `VERSION` in `const.py` and `"version"` in `manifest.json` must be bumped together, by hand, as part of the commit that's tagged for release — there is no CI step that stamps them. HACS installs directly from the tagged repository tree, so whatever these two fields say at that commit is what ships.
-- **Sensor state = days remaining** (integer `0` or positive). State is `"unknown"` only when the holiday name is not found in the API data.
-- **`api.py`** holds the Calendarific API client: `calendarificAPI` (lowercase) is a thin HTTP wrapper around the Calendarific v2 REST API; `CalendarificApiReader` (PascalCase) is the per-instance cache/updater that wraps it; `fetch_holiday_names()` is a standalone helper used by the config/options flow to list available holidays for a country/state before an entry (and therefore a reader) exists. It's a separate module (not part of `__init__.py`) specifically so `config_flow.py` can import it without reaching into the integration's setup module.
-- **Translations** – UI config/options flow strings live in `translations/<lang>.json`. `en.json` is the source of truth; other files are community-contributed and may lag behind new flow steps.
+- **Sensor state = days remaining** (integer `0` or positive). State is `None` (shown as unknown) only when the holiday name is not found in the API data.
+- **`api.py`** holds the Calendarific API client and has no `homeassistant` dependency: `CalendarificClient` is an async wrapper around the v2 holidays endpoint that takes an `aiohttp.ClientSession` from its caller (so HA's shared session is injected), applies a request timeout, and turns failures into `CalendarificAuthError` / `CalendarificRateLimitError` / `CalendarificConnectionError`. It never puts `str(err)` of an aiohttp error in a message, because those can embed the request URL and so the API key. `Holiday` and `HolidayData` are the data model. It's a separate module (not part of `__init__.py`) so `config_flow.py` can import it without reaching into the integration's setup module.
+- **Translations** – `strings.json` is the source of truth; `translations/en.json` is a copy with the `[%key:common::...%]` references resolved to Home Assistant's own text, and `tests/test_translations.py` fails if they drift or if a form field lacks a `data_description`. Add any new string to both. HA strips a trailing period from `exceptions` messages, so omit it there. The other language files (hr, nb, nl) must mirror `en.json` exactly (no obsolete or missing keys, same placeholders; `TestTranslationFiles` enforces it), so a new string needs a translation in each. They were produced by Claude from the English and have not been reviewed by native speakers.
 - **Entity `unique_id`** – every entity that exposes `device_info` (via `device.py`'s `get_device_info()`) must also expose a stable `unique_id`, per HA's requirement (enforced from 2027.8.0) that a device-linked entity have one. All of them are derived from `entry.entry_id`, so they stay unique and stable across restarts without needing to persist a random ID anywhere.
-- **Old (pre-refactor) config entries are incompatible.** `async_setup_entry` raises `ConfigEntryError` if `entry.data` doesn't contain `api_key` (the old one-entry-per-holiday shape used a different key set entirely). There's no migration path — remove and re-add the integration.
+- **Old (pre-refactor) config entries are incompatible.** `async_setup_entry` raises a translated `ConfigEntryError` (`legacy_entry`) if `entry.data` doesn't contain `api_key` (the old one-entry-per-holiday shape used a different key set entirely). There's no migration path — remove and re-add the integration.
 
 ## Release process
 

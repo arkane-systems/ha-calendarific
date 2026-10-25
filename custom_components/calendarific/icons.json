@@ -1,0 +1,14 @@
+{
+  "entity": {
+    "calendar": {
+      "holidays": {
+        "default": "mdi:calendar-star"
+      }
+    },
+    "sensor": {
+      "next_holiday": {
+        "default": "mdi:calendar-arrow-right"
+      }
+    }
+  }
+}

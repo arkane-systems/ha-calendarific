@@ -1,11 +1,17 @@
 {
     "config": {
         "abort": {
-            "no_holidays_found": "No holidays found. Ensure that you have configured a valid country, state and api key."
+            "already_configured": "Location is already configured",
+            "reauth_successful": "Re-authentication was successful",
+            "reconfigure_successful": "Re-configuration was successful"
         },
         "error": {
             "no_holidays_found": "No holidays found. Ensure that you have configured a valid country, state and api key.",
-            "no_holidays_selected": "Select at least one holiday."
+            "no_holidays_selected": "Select at least one holiday.",
+            "invalid_auth": "The API key was rejected. Check that it is correct and that your Calendarific subscription is active.",
+            "cannot_connect": "Could not reach Calendarific. Check your network connection and try again.",
+            "rate_limited": "Your Calendarific account has reached its monthly request limit. Try again later or upgrade your plan.",
+            "already_configured": "Another instance already tracks this country and state."
         },
         "step": {
             "user": {
@@ -16,6 +22,12 @@
                     "api_key": "Your Calendarific API key",
                     "country": "Country code",
                     "state": "State/subdivision code (optional)"
+                },
+                "data_description": {
+                    "name": "A name for this instance. If left blank, one is generated from the country and state.",
+                    "api_key": "The API key from your Calendarific account.",
+                    "country": "The two-letter ISO 3166-1 country code, for example US or GB.",
+                    "state": "An optional ISO 3166-2 subdivision code for regional holidays. Leave blank for national holidays only."
                 }
             },
             "defaults": {
@@ -26,8 +38,14 @@
                     "icon_today": "Icon when a holiday is today",
                     "days_as_soon": "Number of days to consider a holiday 'soon'",
                     "icon_soon": "Icon when a holiday is soon",
-                    "date_format": "Date format (Python strftime syntax)",
-                    "unit_of_measurement": "Text for unit_of_measurement"
+                    "date_format": "Date format (Python strftime syntax)"
+                },
+                "data_description": {
+                    "icon_normal": "Icon shown while the holiday is further away than the 'soon' threshold, for example mdi:calendar-blank.",
+                    "icon_today": "Icon shown on the day of the holiday.",
+                    "days_as_soon": "A holiday this many days away or fewer counts as 'soon'.",
+                    "icon_soon": "Icon shown while the holiday is 'soon'.",
+                    "date_format": "How the date attribute is written, using Python strftime codes such as %Y-%m-%d (see strftime.org)."
                 }
             },
             "holidays": {
@@ -35,13 +53,53 @@
                 "description": "Choose which holidays to create sensors for. You can add, remove, or customize holidays later from this instance's options.",
                 "data": {
                     "holidays": "Holidays"
+                },
+                "data_description": {
+                    "holidays": "The holidays to create a sensor for. Calendarific offers this list for the country and state you chose."
+                }
+            },
+            "reauth_confirm": {
+                "title": "Re-enter your Calendarific API key",
+                "description": "Calendarific rejected the API key for {title}. Enter a valid key to resume updates.",
+                "data": {
+                    "api_key": "Your Calendarific API key"
+                },
+                "data_description": {
+                    "api_key": "A valid API key for this Calendarific account."
+                }
+            },
+            "reconfigure": {
+                "title": "Reconfigure this instance",
+                "description": "Change the API key, country or state. Moving the instance to a different country or state asks you to choose its holidays again.",
+                "data": {
+                    "api_key": "Your Calendarific API key",
+                    "country": "Country code",
+                    "state": "State/subdivision code (optional)"
+                },
+                "data_description": {
+                    "api_key": "The API key from your Calendarific account.",
+                    "country": "The two-letter ISO 3166-1 country code, for example US or GB.",
+                    "state": "An optional ISO 3166-2 subdivision code for regional holidays. Leave blank for national holidays only."
+                }
+            },
+            "reconfigure_holidays": {
+                "title": "Select holidays",
+                "description": "Holidays tracked at the old location that are also available here are pre-selected, with their customizations kept. The rest are dropped.",
+                "data": {
+                    "holidays": "Holidays"
+                },
+                "data_description": {
+                    "holidays": "The holidays to create a sensor for."
                 }
             }
         }
     },
     "options": {
         "abort": {
-            "no_holidays_configured": "This instance has no holidays configured yet. Add some first."
+            "no_holidays_configured": "This instance has no holidays configured yet. Add some first.",
+            "invalid_auth": "The API key was rejected. Check that it is correct and that your Calendarific subscription is active.",
+            "cannot_connect": "Could not reach Calendarific. Check your network connection and try again.",
+            "rate_limited": "Your Calendarific account has reached its monthly request limit. Try again later or upgrade your plan."
         },
         "error": {
             "no_holidays_selected": "Select at least one holiday."
@@ -49,8 +107,10 @@
         "step": {
             "init": {
                 "title": "Manage this instance",
-                "data": {
-                    "action": "What would you like to do?"
+                "menu_options": {
+                    "holidays": "Add or remove holidays",
+                    "defaults": "Edit instance defaults",
+                    "customize": "Customize a specific holiday"
                 }
             },
             "holidays": {
@@ -58,6 +118,9 @@
                 "description": "Holidays you deselect stop being tracked and lose any customization they had.",
                 "data": {
                     "holidays": "Holidays"
+                },
+                "data_description": {
+                    "holidays": "The holidays to create a sensor for. Deselected holidays lose any customization."
                 }
             },
             "defaults": {
@@ -68,19 +131,28 @@
                     "icon_today": "Icon when a holiday is today",
                     "days_as_soon": "Number of days to consider a holiday 'soon'",
                     "icon_soon": "Icon when a holiday is soon",
-                    "date_format": "Date format (Python strftime syntax)",
-                    "unit_of_measurement": "Text for unit_of_measurement"
+                    "date_format": "Date format (Python strftime syntax)"
+                },
+                "data_description": {
+                    "icon_normal": "Icon shown while the holiday is further away than the 'soon' threshold, for example mdi:calendar-blank.",
+                    "icon_today": "Icon shown on the day of the holiday.",
+                    "days_as_soon": "A holiday this many days away or fewer counts as 'soon'.",
+                    "icon_soon": "Icon shown while the holiday is 'soon'.",
+                    "date_format": "How the date attribute is written, using Python strftime codes such as %Y-%m-%d (see strftime.org)."
                 }
             },
             "customize": {
                 "title": "Customize a holiday",
                 "data": {
                     "holiday": "Holiday"
+                },
+                "data_description": {
+                    "holiday": "The tracked holiday whose settings you want to change."
                 }
             },
             "customize_values": {
                 "title": "Customize {holiday}",
-                "description": "Values shown are this holiday's current effective settings (its own override, or the instance default). Check 'Reset to default' to discard any override for this holiday and go back to using the instance defaults - other fields are ignored if checked. A friendly name only changes the display name - it won't rename this holiday's already-assigned entity ID; use the entity's own settings dialog for that.",
+                "description": "Values shown are this holiday's current effective settings (its own override, or the instance default). Check 'Reset to instance default' to discard any override for this holiday and go back to using the instance defaults - other fields are ignored if checked. A friendly name only changes the display name - it won't rename this holiday's already-assigned entity ID; use the entity's own settings dialog for that.",
                 "data": {
                     "name": "Friendly name (leave blank to use the holiday name)",
                     "icon_normal": "Icon",
@@ -88,8 +160,52 @@
                     "days_as_soon": "Number of days to consider this holiday 'soon'",
                     "icon_soon": "Icon when this holiday is soon",
                     "date_format": "Date format (Python strftime syntax)",
-                    "unit_of_measurement": "Text for unit_of_measurement",
                     "reset_to_default": "Reset to instance default"
+                },
+                "data_description": {
+                    "name": "A display name for this holiday's sensor. Leave blank to use the holiday's own name. This does not change the entity ID.",
+                    "icon_normal": "Icon shown while the holiday is further away than the 'soon' threshold, for example mdi:calendar-blank.",
+                    "icon_today": "Icon shown on the day of the holiday.",
+                    "days_as_soon": "A holiday this many days away or fewer counts as 'soon'.",
+                    "icon_soon": "Icon shown while the holiday is 'soon'.",
+                    "date_format": "How the date attribute is written, using Python strftime codes such as %Y-%m-%d (see strftime.org).",
+                    "reset_to_default": "Discard this holiday's customizations and use the instance defaults. The other fields are ignored when this is checked."
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "legacy_entry": {
+            "message": "This entry was created by an older version of Calendarific and is no longer compatible. Remove it and add the integration again"
+        },
+        "auth_failed": {
+            "message": "Calendarific rejected the API key: {detail}"
+        },
+        "update_failed": {
+            "message": "Error fetching holidays from Calendarific: {detail}"
+        }
+    },
+    "entity": {
+        "sensor": {
+            "next_holiday": {
+                "name": "Next holiday"
+            }
+        },
+        "calendar": {
+            "holidays": {
+                "name": "Holidays"
+            }
+        }
+    },
+    "issues": {
+        "holiday_missing": {
+            "title": "{holiday} is no longer listed in {title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Stop tracking {holiday}?",
+                        "description": "Calendarific no longer lists a holiday called {holiday} for this instance's country and state, so its sensor can't show a date. Confirm to remove it from the instance. If the holiday was renamed, add the new name from the instance's options afterwards."
+                    }
                 }
             }
         }
