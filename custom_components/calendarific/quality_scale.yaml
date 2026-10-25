@@ -40,10 +40,11 @@ rules:
   has-entity-name:
     status: exempt
     comment: >
-      Holiday sensors are deliberately named after the holiday itself (for example
-      "Christmas Day"); prefixing the instance title would yield names such as
-      "Calendarific (US - KS) Christmas Day" and long entity IDs. The Next Holiday
-      sensor and the calendar do set has_entity_name.
+      Holiday sensors are named after API data and register under the holiday's own
+      name (for example "Christmas Day"), which is neither translatable nor something
+      to prefix ourselves; Home Assistant 2026.10 and newer add the device name to
+      their entity IDs and friendly_name on its own while the interface shows the
+      plain name. The Next Holiday sensor and the calendar do set has_entity_name.
   runtime-data: done
   test-before-configure: done
   test-before-setup: done

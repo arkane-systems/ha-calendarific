@@ -41,9 +41,11 @@ Each instance creates one device (named after the instance) holding these entiti
 
 | Entity | State | Attributes |
 |:-------|:------|:-----------|
-| **A sensor per tracked holiday**, named after the holiday (for example `sensor.christmas_day`) | The number of days until the holiday's next occurrence, `0` on the day itself. The unit is always days (the *duration* device class), so Home Assistant can show it in your language or convert it from the entity's settings. *Unknown* if Calendarific doesn't list the holiday. | **date**: the next date, formatted by the *date format* setting. **description**: the description Calendarific gives the holiday. |
+| **A sensor per tracked holiday**, named after the holiday (shown as "Christmas Day") | The number of days until the holiday's next occurrence, `0` on the day itself. The unit is always days (the *duration* device class), so Home Assistant can show it in your language or convert it from the entity's settings. *Unknown* if Calendarific doesn't list the holiday. | **date**: the next date, formatted by the *date format* setting. **description**: the description Calendarific gives the holiday. |
 | **Next Holiday** sensor, named "*instance name* Next holiday" | The name of whichever tracked holiday is coming up soonest (its custom name, if it has one). | **days**: the days remaining until it. |
 | **Calendar**, named after the instance | The tracked holidays as all-day events. | Standard calendar attributes for the current or next event. |
+
+Home Assistant 2026.10 and newer put the instance's name in front of a holiday sensor's entity ID and of the `friendly_name` attribute (for example `sensor.home_christmas_day`), while the interface still shows just the holiday name. Older versions (checked with 2026.2) use the plain `sensor.christmas_day`. The prefix keeps overlapping holidays from two instances apart. Existing entity IDs never change.
 
 A holiday sensor's icon changes with the distance to the holiday: the *normal* icon, then the *soon* icon within the "soon" threshold, then the *today* icon on the day.
 
@@ -150,7 +152,7 @@ If Calendarific rejects your API key (for example because it was revoked or your
 
 ## Examples
 
-The entity IDs below depend on your instance and holiday names; adjust them to match yours. A Next Holiday sensor's ID starts with the instance's name, so an instance called "Home" has `sensor.home_next_holiday` and `calendar.home`.
+The entity IDs below depend on your instance and holiday names and on your Home Assistant version; adjust them to match yours. For an instance called "Home" on Home Assistant 2026.10 or newer, the Christmas Day sensor is `sensor.home_christmas_day` (`sensor.christmas_day` on 2026.2 and earlier), the Next Holiday sensor is `sensor.home_next_holiday` and the calendar is `calendar.home`.
 
 **Notify on the day of a holiday**
 
@@ -159,7 +161,7 @@ automation:
   - alias: "Christmas Day"
     triggers:
       - trigger: state
-        entity_id: sensor.christmas_day
+        entity_id: sensor.home_christmas_day
         to: "0"
     actions:
       - action: notify.notify

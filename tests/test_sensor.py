@@ -5,11 +5,31 @@ from __future__ import annotations
 from datetime import date
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 import pytest
 
 from .common import TODAY, entity_id_for, get_state, make_entry, sensor_id, setup_entry
 
 pytestmark = pytest.mark.usefixtures("frozen_today", "fake_api")
+
+
+def _registered_name(hass: HomeAssistant, entity_id: str) -> str | None:
+    """The name the entity registered with, which the frontend displays."""
+    entry = er.async_get(hass).async_get(entity_id)
+    assert entry is not None
+    return entry.original_name
+
+
+def _friendly_name(hass: HomeAssistant, entity_id: str) -> str:
+    friendly_name: str = get_state(hass, entity_id).attributes["friendly_name"]
+    return friendly_name
+
+
+def _with_optional_device_prefix(name: str) -> set[str]:
+    """Home Assistant 2026.10 and newer put the device name (here "Test"/"Home")
+    in front of the state's friendly_name for device entities that don't use
+    has_entity_name; older versions leave the plain name."""
+    return {name, f"Test {name}", f"Home {name}"}
 
 
 async def test_state_is_days_remaining_with_attributes(hass: HomeAssistant) -> None:
@@ -97,7 +117,8 @@ async def test_custom_name_changes_friendly_name_only(hass: HomeAssistant) -> No
     entry = await setup_entry(hass, make_entry(holidays={"Christmas Day": {"name": "Xmas"}}))
     entity_id = sensor_id(hass, entry, "Christmas Day")
 
-    assert get_state(hass, entity_id).attributes["friendly_name"] == "Xmas"
+    assert _registered_name(hass, entity_id) == "Xmas"
+    assert _friendly_name(hass, entity_id) in _with_optional_device_prefix("Xmas")
 
 
 async def test_next_holiday_reports_soonest_tracked_holiday(hass: HomeAssistant) -> None:
@@ -128,9 +149,10 @@ async def test_next_holiday_unknown_without_matches(hass: HomeAssistant) -> None
 
 async def test_holiday_sensors_are_named_after_the_holiday_alone(hass: HomeAssistant) -> None:
     entry = await setup_entry(hass, make_entry(title="Home"))
-    state = get_state(hass, sensor_id(hass, entry, "Christmas Day"))
+    entity_id = sensor_id(hass, entry, "Christmas Day")
 
-    assert state.attributes["friendly_name"] == "Christmas Day"
+    assert _registered_name(hass, entity_id) == "Christmas Day"
+    assert _friendly_name(hass, entity_id) in _with_optional_device_prefix("Christmas Day")
 
 
 async def test_next_holiday_is_prefixed_with_its_instance(hass: HomeAssistant) -> None:

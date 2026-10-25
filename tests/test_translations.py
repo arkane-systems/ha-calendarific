@@ -7,13 +7,11 @@ from pathlib import Path
 import re
 from typing import Any
 
-import homeassistant
 import pytest
 
 from custom_components.calendarific.helpers import default_title, instance_unique_id
 
 INTEGRATION = Path(__file__).resolve().parent.parent / "custom_components" / "calendarific"
-CORE_STRINGS = Path(homeassistant.__file__).resolve().parent / "strings.json"
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -21,26 +19,33 @@ def _load(path: Path) -> dict[str, Any]:
     return data
 
 
-def _resolve(value: Any, core: dict[str, Any]) -> Any:
-    """Replace [%key:common::...%] references with Home Assistant's own text."""
-    if isinstance(value, dict):
-        return {key: _resolve(item, core) for key, item in value.items()}
-    match = re.fullmatch(r"\[%key:([^%]+)%\]", value)
-    if match is None:
-        return value
-    node: Any = core
-    for part in match.group(1).split("::"):
-        node = node[part]
-    assert isinstance(node, str)
-    return node
-
-
 STRINGS = _load(INTEGRATION / "strings.json")
 EN = _load(INTEGRATION / "translations" / "en.json")
 
 
+def _mismatches(source: Any, translated: Any, path: str = "") -> list[str]:
+    """Compare strings.json with en.json.
+
+    Literal strings must match exactly. A [%key:common::...%] reference only
+    needs a non-empty string in en.json: Home Assistant rewords its common
+    strings between releases (for example "Re-configuration" became
+    "Reconfiguration"), so the exact text is not ours to pin.
+    """
+    if isinstance(source, dict):
+        if not isinstance(translated, dict) or set(source) != set(translated):
+            return [path or "<root>"]
+        return [
+            problem
+            for key in source
+            for problem in _mismatches(source[key], translated[key], f"{path}.{key}".lstrip("."))
+        ]
+    if re.fullmatch(r"\[%key:[^%]+%\]", source):
+        return [] if isinstance(translated, str) and translated else [path]
+    return [] if source == translated else [path]
+
+
 def test_en_json_is_strings_json_with_common_keys_resolved() -> None:
-    assert EN == _resolve(STRINGS, _load(CORE_STRINGS))
+    assert _mismatches(STRINGS, EN) == []
 
 
 def _flatten(data: dict[str, Any], prefix: str = "") -> dict[str, str]:

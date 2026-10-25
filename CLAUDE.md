@@ -73,9 +73,11 @@ Entities (all `CalendarificEntity` subclasses, entity.py) never fetch anything: 
 
 ### Entity naming
 
-- **Holiday sensors** have `has_entity_name = False` and are named after the holiday itself (or its custom name), so they read as "Christmas Day". This is the deliberate `has-entity-name` exemption in `quality_scale.yaml`: prefixing the instance title would give "Calendarific (US - KS) Christmas Day" and long entity IDs.
+- **Holiday sensors** have `has_entity_name = False` and register under the holiday's own name (or its custom name): the registry's `original_name` is "Christmas Day". This is the deliberate `has-entity-name` exemption in `quality_scale.yaml`: the names come from API data, so they are neither prefixed by us nor translatable.
 - **Next Holiday and the calendar** have `has_entity_name = True`. Next Holiday uses `translation_key = "next_holiday"`, giving "<instance> Next holiday", which tells several instances apart; the calendar has `name = None`, so it takes the device's name. Entity names only translate when `has_entity_name` is True, which is why the holiday sensors can't.
-- `icons.json` covers those two fixed entities. Holiday sensors keep the user-configurable `icon` property (the three icon settings are deliberate).
+- **The Home Assistant version changes what a holiday sensor's ID and `friendly_name` look like.** Verified on 2026.2.3 they are plain (`sensor.christmas_day`, "Christmas Day"). Verified on 2026.10.3 (the releases between are untested), Home Assistant adds the device name to both for device entities that don't set `has_entity_name` (`sensor.home_christmas_day`, "Home Christmas Day"), while `original_name` stays "Christmas Day" and the frontend displays that. Next Holiday and the calendar are identical in both. Existing entity IDs never change. So tests must not assert a holiday sensor's `friendly_name` or ID literally: assert `original_name`, and accept the name with or without the device prefix (see `_with_optional_device_prefix` in `tests/test_sensor.py`), and look entities up by unique ID.
+- `icons.json` covers the two fixed entities. Holiday sensors keep the user-configurable `icon` property (the three icon settings are deliberate).
+- **Test against more than one Home Assistant version when the behavior under test is Home Assistant's own** (naming, registry, flows): `requirements_test.txt` pins the harness for 2026.2.3, and the suite also passes on 2026.10.x with a scratch environment (`pip install pytest-homeassistant-custom-component` on Python 3.14).
 
 ### Repairs, stale entities and diagnostics
 
