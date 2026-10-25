@@ -3,11 +3,17 @@ name: Run tests
 on:
   push:
   pull_request:
+  schedule:
+    # Home Assistant releases monthly. A weekly run of the newest harness warns
+    # of breakage even when nobody has pushed.
+    - cron: "17 6 * * 1"
 
 permissions: {}
 
 jobs:
   test:
+    # Pinned harness for the oldest tested Home Assistant (see requirements_test.txt).
+    if: github.event_name != 'schedule'
     runs-on: "ubuntu-latest"
     steps:
       - uses: "actions/checkout@v7"
@@ -24,6 +30,7 @@ jobs:
           --cov-fail-under=95
 
   mypy:
+    if: github.event_name != 'schedule'
     runs-on: "ubuntu-latest"
     steps:
       - uses: "actions/checkout@v7"
@@ -34,3 +41,21 @@ jobs:
         run: pip install -r requirements_test.txt
       - name: Run mypy (strict)
         run: mypy
+
+  test-latest:
+    # Informational: the newest Home Assistant moves on its own schedule and can
+    # break us through no change of ours, so a failure here does not fail the run.
+    name: test (latest Home Assistant, informational)
+    runs-on: "ubuntu-latest"
+    continue-on-error: true
+    steps:
+      - uses: "actions/checkout@v7"
+      - uses: "actions/setup-python@v7"
+        with:
+          python-version: "3.14"
+      - name: Install the newest test harness
+        run: pip install pytest-homeassistant-custom-component
+      - name: Show the Home Assistant version under test
+        run: pip list 2>/dev/null | grep -i -E "^(homeassistant|pytest-homeassistant-custom-component) "
+      - name: Run tests
+        run: pytest
