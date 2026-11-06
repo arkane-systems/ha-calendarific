@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-This is a Home Assistant custom integration (distributed via HACS) that creates sensor and calendar entities for public holidays via the [Calendarific API](https://calendarific.com/). It is a post-abandonment reboot of an integration originally by @pinkywafer. All code lives under `custom_components/calendarific/`.
+This is a Home Assistant custom integration (distributed via HACS, which Home Assistant 2026.11 builds in as the Marketplace) that creates sensor and calendar entities for public holidays via the [Calendarific API](https://calendarific.com/). It is a post-abandonment reboot of an integration originally by @pinkywafer. All code lives under `custom_components/calendarific/`.
 
 **This repo has no live upstream.** The original integration (pinkywafer/Calendarific) appears abandoned by its developer, and this repo (arkane-systems/ha-calendarific) is the maintained continuation. As a result, PRs are opened against **this repo's `master` branch only** — never against the upstream `pinkywafer/Calendarific` repo.
 
@@ -107,6 +107,7 @@ Icon switches based on the `days_as_soon` threshold:
 ## Key conventions
 
 - **Constants in `const.py`** – all domain-level constants, config keys, defaults, and platform names are defined here. Import from `const.py` rather than repeating string literals.
+- **Marketplace category.** `manifest.json` declares `"categories": ["productivity_information.calendars_todos"]`, which the Marketplace (HA 2026.11+) browses by. The key is optional for custom integrations, but the HACS action warns without it. One to three keys from the [official list](https://contributors.home-assistant.io/core/integrations/categories/).
 - **Version bumps are manual.** `VERSION` in `const.py` and `"version"` in `manifest.json` must be bumped together, by hand, as part of the commit that's tagged for release — there is no CI step that stamps them. HACS installs directly from the tagged repository tree, so whatever these two fields say at that commit is what ships.
 - **Sensor state = days remaining** (integer `0` or positive). State is `None` (shown as unknown) only when the holiday name is not found in the API data.
 - **`api.py`** holds the Calendarific API client and has no `homeassistant` dependency: `CalendarificClient` is an async wrapper around the v2 holidays endpoint that takes an `aiohttp.ClientSession` from its caller (so HA's shared session is injected), applies a request timeout, and turns failures into `CalendarificAuthError` / `CalendarificRateLimitError` / `CalendarificConnectionError`. It never puts `str(err)` of an aiohttp error in a message, because those can embed the request URL and so the API key. `Holiday` and `HolidayData` are the data model. It's a separate module (not part of `__init__.py`) so `config_flow.py` can import it without reaching into the integration's setup module.

@@ -61,11 +61,13 @@ A holiday sensor's icon changes with the distance to the holiday: the *normal* i
 
 ## Installation
 
-### HACS
+### Marketplace or HACS
 
-Calendarific is in the HACS default store:
+Calendarific is in the HACS default catalog. From Home Assistant 2026.11, HACS is built into Home Assistant as the **Marketplace** (Settings → Marketplace); on earlier versions, install it through HACS.
 
-1. In HACS, search for **Calendarific** and click **Download**.
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=arkane-systems&repository=ha-calendarific&category=integration)
+
+1. Open Calendarific with the button above (it opens the Marketplace on 2026.11 or later, and HACS before that), or search for **Calendarific** in the Marketplace or HACS, and click **Download**.
 2. Restart Home Assistant.
 3. Set up one or more instances via the Integrations page (see below).
 
@@ -234,7 +236,7 @@ logger:
 ## Removing the integration
 
 1. Under Settings → Devices & Services, open Calendarific, click the three-dot menu on the instance you want to remove and choose **Delete**. This removes the instance's device, its sensors, its calendar and any repairs it raised. Other instances are untouched. Repeat for each instance.
-2. If you installed with HACS, open Calendarific in HACS, choose **Remove** from its three-dot menu, and restart Home Assistant. If you installed manually, delete the `custom_components/calendarific` directory and restart.
+2. If you installed with the Marketplace or HACS, open Calendarific there, choose **Remove** from its three-dot menu, and restart Home Assistant. If you installed manually, delete the `custom_components/calendarific` directory and restart.
 3. Optionally, delete the API key from your Calendarific account.
 
 ## Translations
